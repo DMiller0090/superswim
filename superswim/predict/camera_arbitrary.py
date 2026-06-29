@@ -28,9 +28,9 @@ import os, csv
 from . import camera_exact as CE
 
 _HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tables")
-# COMPLETE grid (all 65536 cells), dumped live via tww-python-scripts/omega_grid_dump.py.
+# Two live omega sources, both loaded: a COARSE 64x64 grid (omega_table_full.csv, 4096 cells) + fine
+# per-capture cells off it (omega_table.csv). NOT a complete 65536 grid; off-grid raises (see omega_cmd).
 _FULL_PATH = os.path.join(_HERE, "omega_table_full.csv")
-# legacy sparse per-capture table (kept as a secondary fallback only).
 _TABLE_PATH = os.path.join(_HERE, "omega_table.csv")
 
 _OMEGA: dict[tuple[int, int], int] = {}
@@ -39,12 +39,13 @@ for _p in (_TABLE_PATH, _FULL_PATH):     # full loaded LAST so it wins on any ov
         for _r in csv.DictReader(open(_p)):
             _OMEGA[(int(_r["csx"]), int(_r["csy"]))] = int(_r["omega"])
 
-_COMPLETE = len(_OMEGA) >= 256 * 256     # the full 65536-cell grid is present
+_COMPLETE = len(_OMEGA) >= 256 * 256     # only a dense per-cell grid; the shipped grid is a subsample
 
 
 def omega_cmd(csx: int, csy: int) -> int:
-    """Exact per-frame camera-rate command for the full C-stick (csx,csy). Pure lookup from the
-    complete 65536-cell live dump (omega_table_full.csv)."""
+    """Per-frame camera-rate command for the C-stick (csx,csy): exact lookup from the live grid +
+    captures, the csx-only closed model when csy==128, else raise (off-grid is never approximated;
+    regenerate a denser grid via omega_grid_dump.py if off-grid camera accuracy matters)."""
     csx, csy = int(csx), int(csy)
     if (csx, csy) in _OMEGA:
         return _OMEGA[(csx, csy)]

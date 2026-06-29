@@ -14,6 +14,13 @@ residual (cap_randcharge/gen_charge). Core ESS/charge swim is on-axis = unaffect
 stays bit-exact. Physics change → validate live (`tests/dolphin/`, slate via `TWWGZ_SLATE`/`slot=`)
 and tighten the loosened `_CHAR_BOUNDS` back toward bit-exact.
 
+## >>> KNOWN GAP: the omega (camera-rate) grid is a coarse 4096-cell subsample <<<
+See memory [[superswim-omega-grid-coarse]]. `superswim/tables/omega_table_full.csv` is a 64x64 grid
+(4096) + fine captures, NOT a complete 65536-cell grid; `camera_arbitrary.omega_cmd` is exact
+on-grid / csy==128 and raises off-grid (never approximates). Docs corrected this session. Remediation
+(separate live task): regenerate a denser grid via `tww-python-scripts/omega_grid_dump.py`. Matters
+only if charge/camera steering drifts on arbitrary C-stick directions.
+
 ## >>> pt 22 (2026-06-29) — REPO turned into a shareable `superswim` PACKAGE + a two-gate test model. KEY LESSON: the sim cold-start seed needs the live mRate, not anim alone. <<<
 Read [[superswim-repo-layout]], [[superswim-regression-suite]], [[superswim-554-resolved]] first.
 
