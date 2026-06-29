@@ -19,8 +19,8 @@ _HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tables")
 # Complete live grid (all 65536 cells) of the game's MAIN_STICK_ANGLE (0x80398314), dumped via
 # tww-python-scripts/stick_angle_grid_dump.py — the authoritative mMainStickAngle for any (sx,sy).
 _TABLE_PATH = os.path.join(_HERE, "stick_angle_table.csv")
-# NOTE: this grid also carries a live `stick_dist` magnitude column, currently UNUSED — it disagrees
-# with the closed-form S.stick_dist off-axis (e.g. (200,60): live 1.0 vs 0.69); wiring it in is TODO.
+# Only the `angle` column is used here. The `stick_dist`/`value` magnitude columns are NOT the swim
+# gain magnitude (live-disproven, tests/test_partial_magnitude.py); gain mag stays closed-form /54.
 
 _TABLE: dict[tuple[int, int], int] = {}
 if os.path.exists(_TABLE_PATH):

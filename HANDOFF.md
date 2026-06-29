@@ -3,16 +3,30 @@
 Read `SUPERSWIM_KNOWLEDGE.md` (source of truth) and `../tools/DOLPHIN_CONTROL.md` first.
 This file is the short "where we are / what's next" for the next session.
 
-## >>> NEXT: wire the live stick magnitude into the arbitrary-stick predictor <<<
-Read memory [[superswim-stick-magnitude-todo]] for the full plan + code pointers.
-The arbitrary-stick predictor takes its ANGLE from the live grid but its MAGNITUDE from the
-closed-form `sim.stick_dist` (sim.py:266), which disagrees off-axis (octagonal vs circular gate;
-e.g. (200,60): live 1.0 vs 0.69). The live magnitude is already in the `stick_dist` column of
-`superswim/tables/stick_angle_table.csv` — wire it into `superswim/predict/swim_arbitrary.py`
-(off-axis only; keep on-axis closed-form). This closes the `tests/test_complicated.py` v/pos
-residual (cap_randcharge/gen_charge). Core ESS/charge swim is on-axis = unaffected; golden suite
-stays bit-exact. Physics change → validate live (`tests/dolphin/`, slate via `TWWGZ_SLATE`/`slot=`)
-and tighten the loosened `_CHAR_BOUNDS` back toward bit-exact.
+## >>> pt 23 (2026-06-29) — the "wire the live stick magnitude" task is DISPROVEN & CLOSED. The closed-form /54 magnitude was ALREADY correct; the grid `stick_dist` column is NOT the gain input. <<<
+Read memory [[superswim-stick-magnitude-todo]] (now CLOSED-as-invalid).
+
+**What was tested (decisive, live):** captured a partial **on-axis** charge — alternate (128,84)/
+(128,176), camera frozen west — so the angle is exact and ONLY the magnitude (grid vs closed /54)
+differs. `harness/capture/partial_onaxis_cap.csv` (48 fr, run_tests-style seed). Then drove
+`ArbitrarySwimState` two ways:
+- **closed-form `hypot(_deadzone₁₅)/54`** → **bit-exact every frame** (worst |v_err| 0.000008).
+- **grid `stick_dist` column** → ~0.22 too short (worst |v_err| 0.22, grows with charge).
+
+So the gain magnitude the game uses **IS** the closed-form `/54` already in `swim_arbitrary.py`
+(and `sim.py:537`). The grid `stick_dist` (deref `0x803BD910 +0x35B4`) reads a related-but-different
+value (effective deadzone ~13, off by ~2/54=0.037 per partial cell) — NOT what the swim gain
+consumes, despite the dump script's comment. Wiring it in was tried and **reverted**; only
+explanatory comments remain in `swim_arbitrary.py` / `stick_angle.py`. The (200,60) "live 1.0 vs
+0.69" that motivated the task was a red herring: the 0.69 was `sim.stick_dist`'s `/113` gate (a
+different function); the `/54` path already gives 1.0 there, matching live.
+
+**STILL OPEN (separate, correctly-scoped):** the `tests/test_complicated.py` residual on the
+random-camera off-axis charges (cap_randcharge/gen_charge: v ~0.0105, pos ~1.8, cam 1–2 hw) is
+NOT a magnitude bug — those captures use saturated `sy∈{0,255}` sticks (grid==closed==1.0). The
+residual lives in the **angle/snap/camera coupling** (note the residual cam 1–2 hw too). Leave
+`_CHAR_BOUNDS` as-is; do NOT tighten. A genuinely-partial OFF-axis live capture is still untested
+(both closed /54 and the grid column are unproven off-axis where they don't saturate).
 
 ## >>> KNOWN GAP: the omega (camera-rate) grid is a coarse 4096-cell subsample <<<
 See memory [[superswim-omega-grid-coarse]]. `superswim/tables/omega_table_full.csv` is a 64x64 grid
