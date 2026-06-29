@@ -16,20 +16,16 @@ import os, csv
 from .. import sim as S
 
 _HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tables")
-# COMPLETE grid (all 65536 cells) dumped live from the game's MAIN_STICK_ANGLE field
-# (0x80398314) via tww-python-scripts/stick_angle_grid_dump.py. This is the authoritative
-# mMainStickAngle for ARBITRARY (sx,sy): it matches the facing-snap captures exactly and
-# DISAGREES with INPUT_DUMP_MAIN.csv at some cells -- so the live dump, not INPUT_DUMP, is the
-# source of truth.
-_FULL_PATH = os.path.join(_HERE, "stick_angle_full.csv")
-# legacy sparse facing-snap captures (kept as a secondary fallback only).
+# Complete live grid (all 65536 cells) of the game's MAIN_STICK_ANGLE (0x80398314), dumped via
+# tww-python-scripts/stick_angle_grid_dump.py — the authoritative mMainStickAngle for any (sx,sy).
 _TABLE_PATH = os.path.join(_HERE, "stick_angle_table.csv")
+# NOTE: this grid also carries a live `stick_dist` magnitude column, currently UNUSED — it disagrees
+# with the closed-form S.stick_dist off-axis (e.g. (200,60): live 1.0 vs 0.69); wiring it in is TODO.
 
 _TABLE: dict[tuple[int, int], int] = {}
-for _p in (_TABLE_PATH, _FULL_PATH):     # full loaded LAST so it wins on any overlap
-    if os.path.exists(_p):
-        for _r in csv.DictReader(open(_p)):
-            _TABLE[(int(_r["sx"]), int(_r["sy"]))] = int(_r["angle"]) & 0xFFFF
+if os.path.exists(_TABLE_PATH):
+    for _r in csv.DictReader(open(_TABLE_PATH)):
+        _TABLE[(int(_r["sx"]), int(_r["sy"]))] = int(_r["angle"]) & 0xFFFF
 
 _COMPLETE = len(_TABLE) >= 256 * 256
 
@@ -43,7 +39,7 @@ def is_neutral(sx: int, sy: int) -> bool:
 def angle_s16(sx: int, sy: int) -> int | None:
     """Exact s16 stick angle, or None for neutral. Resolution order:
       1. neutral gate (closed-form dead-zone) -> None (no swim input this frame);
-      2. the COMPLETE live grid (stick_angle_full.csv): exact for every (sx,sy);
+      2. the COMPLETE live grid (stick_angle_table.csv): exact for every (sx,sy);
       3. for an ON-AXIS stick (sx == 128) the closed form is exact (covers anything the grid
          might somehow lack);
       4. otherwise KeyError -- never silently approximated."""
