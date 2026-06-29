@@ -3,6 +3,40 @@
 Read `SUPERSWIM_KNOWLEDGE.md` (source of truth) and `../tools/DOLPHIN_CONTROL.md` first.
 This file is the short "where we are / what's next" for the next session.
 
+## >>> NEXT (chosen 2026-06-29): close the OFF-AXIS charge v residual (~0.0105) — the last gap in the arbitrary-stick predictor <<<
+The `tests/test_complicated.py` residual (cap_randcharge/gen_charge: **v ~0.0105**, pos ~1.8) is now
+ISOLATED to the **off-axis charge GAIN** — it is NOT camera and NOT magnitude:
+- Injecting the TRUE live camera (instead of the predicted one) leaves the v residual **identical**
+  (0.01047/0.01072) and pos barely moves → not camera-driven (the coarse-omega 1–2 hw cam error is
+  a separate, near-orthogonal issue).
+- Magnitude is saturated on these captures (sy∈{0,255} → md=1.0), and the magnitude model is
+  live-confirmed anyway (pt23 below). So magnitude is ruled out.
+- **The discriminator is purely on-axis vs off-axis main stick:** `cap_camchaos` (clean ON-axis
+  charge + random camera) is **bit-exact**; `cap_randcharge` (random OFF-axis charge) is not. Same
+  cold start, same camera treatment.
+
+So the gap is how an off-axis stick's angle feeds `gain = mStickDistance*3*cM_scos(d_turn)` under
+**arbitrary per-frame directions** — likely the snap-cone (`|m34E8-facing|>0x6000`) decision and the
+1-frame facing-lag bookkeeping near the snap↔gradual boundary (swim_arbitrary.action_for already
+notes a "snap<->non-snap boundary mis-price" history). NOTE the clean FIXED-tilt charge is already
+live-validated: `sim.py:195` `charge_rate(α) = -3*cos(2α)` matched live at α=0/8/18. The residual is
+specific to RANDOM per-frame direction changes.
+
+**PLAN (mirror the pt23 magnitude method, which worked):**
+1. OFFLINE FIRST — localize: per-frame v-error on cap_randcharge, correlate worst frames with the
+   snap decision (`d_turn`, snap vs gradual), the stick angle, and post-snap transients. Cheap; no
+   Dolphin. (Drive `ArbitrarySwimState` with the TRUE camera to fully isolate the swim model.)
+2. Form a hypothesis about the mis-priced frames (boundary crossings? gradual-chase lag?).
+3. Capture a CLEAN targeted live charge that isolates the suspect mechanic (fixed off-axis tilt /
+   deliberate snap-cone crossings, camera frozen via csy=0) for clean per-frame ground truth — use
+   `harness/capture/capture_full.py seq=… out=… slot=10` (same tool as pt23).
+4. Fix in `swim_arbitrary._swim_facing` (and/or `swim_exact` snap helpers); validate: golden suite
+   MUST stay bit-exact (arbitrary path is not token-driven, so goldens are untouched if done right),
+   then `python tests/dolphin/run_tests.py` live, then TIGHTEN `_CHAR_BOUNDS` toward bit-exact.
+CODE: `superswim/predict/swim_arbitrary.py` (`_swim_facing`, gain/d_turn, L65-90),
+`superswim/predict/swim_predict_complicated.py` (`predict_full`, the per-frame loop + snap/chase),
+`superswim/sim.py:195` (charge_rate model), `tests/test_partial_magnitude.py` (the pt23 method to copy).
+
 ## >>> pt 23 (2026-06-29) — the "wire the live stick magnitude" task is DISPROVEN & CLOSED. The closed-form /54 magnitude was ALREADY correct; the grid `stick_dist` column is NOT the gain input. <<<
 Read memory [[superswim-stick-magnitude-todo]] (now CLOSED-as-invalid).
 
