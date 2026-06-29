@@ -3,6 +3,17 @@
 Read `SUPERSWIM_KNOWLEDGE.md` (source of truth) and `../tools/DOLPHIN_CONTROL.md` first.
 This file is the short "where we are / what's next" for the next session.
 
+## >>> NEXT: wire the live stick magnitude into the arbitrary-stick predictor <<<
+Read memory [[superswim-stick-magnitude-todo]] for the full plan + code pointers.
+The arbitrary-stick predictor takes its ANGLE from the live grid but its MAGNITUDE from the
+closed-form `sim.stick_dist` (sim.py:266), which disagrees off-axis (octagonal vs circular gate;
+e.g. (200,60): live 1.0 vs 0.69). The live magnitude is already in the `stick_dist` column of
+`superswim/tables/stick_angle_table.csv` — wire it into `superswim/predict/swim_arbitrary.py`
+(off-axis only; keep on-axis closed-form). This closes the `tests/test_complicated.py` v/pos
+residual (cap_randcharge/gen_charge). Core ESS/charge swim is on-axis = unaffected; golden suite
+stays bit-exact. Physics change → validate live (`tests/dolphin/`, slate via `TWWGZ_SLATE`/`slot=`)
+and tighten the loosened `_CHAR_BOUNDS` back toward bit-exact.
+
 ## >>> pt 22 (2026-06-29) — REPO turned into a shareable `superswim` PACKAGE + a two-gate test model. KEY LESSON: the sim cold-start seed needs the live mRate, not anim alone. <<<
 Read [[superswim-repo-layout]], [[superswim-regression-suite]], [[superswim-554-resolved]] first.
 
