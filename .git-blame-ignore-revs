@@ -1,0 +1,6 @@
+# Revisions to skip in `git blame` (bulk moves/reformats that aren't authorship changes).
+# Enable for this repo with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub's blame view honors this file automatically.)
+
+# (No revisions listed yet. Add bulk-reformat/move commit SHAs here as they happen.)

@@ -1,0 +1,1 @@
+chg,188;ess,1;chg,144;ess,2;chg,2;ess,2;chg,2;ess,2;chg,6;ess,1;chg,2;ess,2;chg,2;ess,1;chg,2;ess,2;chg,2;ess,1;chg,2;ess,1;chg,2;ess,1;chg,2;ess,1;chg,2;ess,1;chg,2;ess,1;chg,2;ess,1;chg,2;ess,1;chg,4;ess,1;chg,2;ess,3;chg,2;ess,1;chg,2;ess,3;chg,2;ess,3;chg,2;ess,3;chg,4;ess,3;chg,2;ess,5;chg,2;ess,5;chg,4;ess,5;chg,4;ess,11;chg,2;ess,57;neu,194

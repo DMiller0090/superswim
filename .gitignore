@@ -1,0 +1,25 @@
+# Regenerable artifacts (captures, viz, DTMs, run dumps, logs)
+_generated/
+
+# Local-only research notes / session provenance (not part of the shared repo)
+_notes/
+
+# Local-only agent/editor tooling (kept out of the shared repo)
+.claude/
+CLAUDE.md
+
+# Python
+__pycache__/
+*.pyc
+
+# Packaging / editable-install artifacts
+*.egg-info/
+build/
+dist/
+
+# Large recorded savestates (never track)
+*.dtm.sav
+
+# Game savestates — dumps of copyrighted game RAM; never distribute. Provide your own locally.
+*.s10
+fixtures/savestate/

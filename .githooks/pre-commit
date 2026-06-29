@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Tracked pre-commit hook. Enable once per clone with:
+#   git config core.hooksPath .githooks
+# Bypass a genuine exception with: git commit --no-verify
+exec bash "$(git rev-parse --show-toplevel)/.githooks/check-comment-length.sh"

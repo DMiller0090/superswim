@@ -1,0 +1,10 @@
+# Normalize line endings: text is stored and checked out as LF on every platform.
+* text=auto eol=lf
+
+# Binary assets — never normalize line endings or attempt text diffs.
+*.s10 binary
+*.dtm binary
+*.dtm.sav binary
+*.bin binary
+*.png binary
+*.jpg binary

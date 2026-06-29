@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "superswim"
+version = "0.1.0"
+description = "Bit-exact offline simulation and route planner for TWW (GZLJ01/JP) superswimming"
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "MIT" }
+authors = [{ name = "Dereck Miller" }]
+dependencies = ["numpy"]
+
+[project.urls]
+Repository = "https://github.com/DMiller0090/superswim"
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools]
+# The importable library is the `superswim` package (+ its predict/ subpackage). The live-Dolphin
+# harness/, tests/, viz/ and archive/ are dev tooling, run from a checkout, not shipped on install.
+packages = ["superswim", "superswim.predict"]
+
+[tool.setuptools.package-data]
+superswim = ["tables/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Collect only the offline test_*.py modules. The live-Dolphin scripts now live in
+# tests/dolphin/ (run_tests.py, verify_state.py, spotcheck_*.py) and the golden_* harness
+# modules are NOT test_*.py, so pytest does not collect them -- but skip tests/dolphin/
+# entirely so a future rename in there can't silently pull dolphin_mem into collection.
+python_files = ["test_*.py"]
+norecursedirs = ["dolphin"]
+addopts = "-m 'not slow'"
+markers = [
+    "slow: deselect by default; longer planner/optimizer characterization cases",
+]
