@@ -23,3 +23,6 @@ dist/
 # Game savestates — dumps of copyrighted game RAM; never distribute. Provide your own locally.
 *.s10
 fixtures/savestate/
+
+# Session handoffs are local working notes, never tracked (see _notes/)
+/HANDOFF.md

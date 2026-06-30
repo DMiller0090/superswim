@@ -1,7 +1,7 @@
 # Contributing to superswim
 
-Short, repo-specific conventions. The mechanics source of truth is `SUPERSWIM_KNOWLEDGE.md`;
-current state is `HANDOFF.md`.
+Short, repo-specific conventions. The mechanics source of truth is `SUPERSWIM_KNOWLEDGE.md`.
+(Session handoffs are local working notes under `_notes/`, not tracked in the repo.)
 
 ## Setup
 

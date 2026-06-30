@@ -50,7 +50,6 @@ emit an animated HTML viewer with `viz=out.html`).
 ## Docs
 
 - [`SUPERSWIM_KNOWLEDGE.md`](SUPERSWIM_KNOWLEDGE.md) — **source of truth** for the mechanics & TAS optimization.
-- [`HANDOFF.md`](HANDOFF.md) — current project state ("where we are / what's next").
 - [`knowledge/`](knowledge/) — `SUPERSWIM_DATA.md` (measurement tables), `CAMERA_MODEL.md` +
   `SWIM_CAMERA_PREDICT_NOTES.md` (camera steering), `jp_swim_addrs.md` (JP map addresses).
 
@@ -86,4 +85,4 @@ Dolphin. Read [`../tools/DOLPHIN_CONTROL.md`](../tools/DOLPHIN_CONTROL.md) befor
   as separate modules; consolidating them into one predictor is a known follow-up (each merge
   step must be re-validated bit-exact).
 - `bug#2` (dense-pump live divergence) is resolved as a pipe input-delivery artifact — DTM movie
-  playback is the faithful delivery path, not the `advanceseq` pipe (see `HANDOFF.md`).
+  playback is the faithful delivery path, not the `advanceseq` pipe (see `SUPERSWIM_KNOWLEDGE.md`).
