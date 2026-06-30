@@ -53,6 +53,14 @@ yet *more* than ESS — different rules. See [neutral](neutral.md).
 intermediate decay + simultaneous movement. Modeling the stick→decay curve directly (not 3 discrete
 states) is what lets the optimizer represent arrow swimming.
 
+The sim applies this law correctly for partial deflections too — including a partial-magnitude hold
+interleaved in a charge burst (live-validated bit-exact via DTM, 2026-06-30, after
+[resolved BUG #3](../history/resolved-bugs.md#bug3--partial-hold-gain-dropped-at-a-holdcharge-boundary)).
+A planner search over partial `ess:<rawY>`/`chg:<rawY>` actions is therefore valid physics — but
+empirically on-axis partials still save **0 frames** (deeper-than-ESS only bleeds speed; the
+build-vs-progress tradeoff is gated by stick *direction*, not magnitude). The untested lever
+remains **off-axis** ([arrow swimming](arrow.md)), which needs the 2-D heading model.
+
 ## See also
 
 - [ESS](ess.md) · [Arrow](arrow.md) · [Neutral](neutral.md) · raw data [reference/data.md](../reference/data.md#decay-curve-sweep-potential-speed-decay-vs-stick-low-speed-slate).

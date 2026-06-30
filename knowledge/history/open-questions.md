@@ -22,6 +22,16 @@
 - **Re-enable mid-swim pumps.** Currently disabled (`allow_pump=False`) because the pump ess_start
   anim is mispredicted. Re-enable only after validating the entry-anim phase live per entry-frame.
 
+- **BUG #2 (pump transition) still broken — and its advanceseq gate gives a FALSE pass.**
+  `test_pumptrans_seq` (chg,144 + dense neu↔ess tail) reaches live **v=−775 / net=111004** via the
+  clean DTM (`run_dtm`, reproduced 2026-06-30), but the sim predicts v=−65 and `run_tests`'
+  advanceseq agrees (v=−68) — because advanceseq drops polls on the dense tail (the bug#2 pipe
+  artifact), so the sim is matching the artifact, not the game. The unified-lag [BUG #3 fix]
+  (../history/resolved-bugs.md) made the advanceseq comparison *pass*, masking it. Next:
+  re-validate bug2 strictly via `run_dtm`; diagnose the pump-exit gain/`release_ess_speed` bleed
+  the sim over-applies. The `run_tests` bug2 gate must move off advanceseq onto DTM. →
+  [history/resolved-bugs#bug2](resolved-bugs.md#bug2--dense-pump-live-divergence--pipe-artifact-not-physics).
+
 - **Camera: f32 ω precision + auto-flip envelope + negative fine-band symmetry.** We read the s16
   yaw output exactly; the internal ω velocity is f32 (upstream). The auto-camera *flip* trigger
   (speed/hold-length) is uncharacterized — steering must stay in a non-flipping band. →

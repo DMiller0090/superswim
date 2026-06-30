@@ -14,6 +14,21 @@ Dense back-to-back pump plans reached only ~127k live vs the sim's ~300k. Root c
 net 300,816). A DTM *recorded* from the pipe inherits the jitter — only an independently authored DTM
 is unbiased. **Dense plans are valid.** → [reference/commands](../reference/commands.md#live-validation--dtm-the-faithful-delivery-path), [model/planner](../model/planner.md).
 
+## bug3 — partial-hold gain dropped at a hold→charge boundary
+
+A **partial** on-axis hold (e.g. `(128,77)`) interleaved in a charge burst was mispredicted: live
+`25×chg + 4×(128,77) + 10×chg` gave **v=−92.0** but the sim gave **−93.83** (dv ≈ 1.83); the
+`(128,110)` ESS control was bit-exact. Per-frame DTM ground truth localized it to the first `chg`
+*after* the holds: live applied the 4th hold's `setSpeedAndAngleSwim` gain (lagged one frame, +2),
+but the sim took its `is_chg` branch and applied `ess_decay` (+1/6) instead — **dropping the last
+hold's gain** (error 2 − 1/6 = 1.833). Root cause: `step()` applied the ESS gain *same-frame* but
+the charge gain *lagged*, carrying only one preempted transient (`_post_burst_transient`); at a
+hold→charge boundary the steady holds had self-applied, so nothing was pending and the charge
+overwrote the slot. **Fix:** defer the swim gain ONE frame UNIFORMLY for ESS and charge (the
+discipline `ArrowState` already used). Validated bit-exact via clean DTM (110 **and** 77);
+`run_tests.py bug3 partial hold` is now a baseline. Repro: `harness/dtm/partial_hold_dtm.py`. →
+[model/sim](../model/sim.md#charge-frame-model-four-1-frame-lags), [mechanics/decay-curve](../mechanics/decay-curve.md).
+
 ## 554 / "anim drifts ~3 fr by f400" — truncated-seed artifact
 
 A phantom ~3-frame anim drift by f400 was a **truncated cold-start seed** (anim 8.9417 vs true

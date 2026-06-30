@@ -558,11 +558,17 @@ class SwimState:
         md = min(mag / 54.0, 1.0)
         return f32(md * 3.0 * cM_scos_s16(d_turn))
 
-    def _chg_stick(self):
+    def _chg_stick(self, up_raw=None):
         """The concrete charge stick for this charge frame, matching the replay parity
-        (verify_state/spotcheck: chg#1=UP, then alternating). UP=(128,255), DN=(128,0)."""
+        (verify_state/spotcheck: chg#1=UP, then alternating). UP=(128,255), DN=(128,0).
+        PARTIAL charge ('chg:<up_raw>'): the UP stroke is (128, up_raw) and the DOWN stroke
+        mirrors it about 128 -> (128, 256-up_raw), so a deflection shallower than full still
+        snaps (same on-axis direction) but gains less than 3 via the /54 law. up_raw=None
+        keeps the full-charge sticks BIT-EXACT (default path, baselines untouched)."""
         self._chg_count += 1
-        return (128, 255) if (self._chg_count % 2 == 1) else (128, 0)
+        if up_raw is None:
+            return (128, 255) if (self._chg_count % 2 == 1) else (128, 0)
+        return (128, up_raw) if (self._chg_count % 2 == 1) else (128, 256 - up_raw)
 
     def _move(self, dist):
         self.x += dist * math.cos(self.heading)
@@ -580,8 +586,12 @@ class SwimState:
         the first input frame runs the OLD state; the new state + its effect land next.
         - ESS->neutral: on the 54 frame, v := release_ess_speed = af_drag(v, anim+incr).
         - neutral->ESS (pump): 1-frame neutral tax, then ESS with a scrambled anim start."""
-        if action not in ('chg', 'neu') and not action.startswith('ess'):
+        if action not in ('chg', 'neu') and not action.startswith(('ess', 'chg:')):
             raise ValueError(f"unknown action {action!r}")
+        # PARTIAL charge: 'chg:<up_raw>' charges with a shallower on-axis deflection (still
+        # snaps/flips, gains <3 via /54). chg_up=None -> full charge (existing 'chg', exact).
+        chg_up = int(action[4:]) if action.startswith('chg:') else None
+        is_chg = (action == 'chg') or (chg_up is not None)
         # 180-deg turnaround flip (charge), applied at frame start
         if self._pending_flip:
             self.heading += math.pi
@@ -682,15 +692,15 @@ class SwimState:
                 # 1C/20. The old flat -2 was right only above |v|=100 -> wrong on the low-speed
                 # tail and after many pumps bleed v, where it x598-compounded into divergence.
                 self.v = cLib_addCalc(self.v, 0.0, 0.02, 2.0, 0.5)
-            if action == 'chg':                   # charging FROM neutral (cold start / pump
-                self._pending_gain = self._swim_facing(*self._chg_stick())  # decomp gain:
+            if is_chg:                            # charging FROM neutral (cold start / pump
+                self._pending_gain = self._swim_facing(*self._chg_stick(chg_up))  # decomp gain:
                 self._pending_flip = True         # snap (opposing facing) -> -3, aligned ->
                                                   # +3 (the warm-pump spin-up). gain+flip land
                                                   # next frame (when state has become 55).
             d = self._move(self.v)                # move == potential (|step| == |v|)
             tag = 'NEU'
         else:                                     # STATE 55: ESS / charge
-            is_chg = (action == 'chg')            # action 'neu' here = the held ESS exit frame
+            # action 'neu' here = the held ESS exit frame; is_chg/chg_up computed above.
             rawY = int(action.split(':')[1]) if action.startswith('ess') and ':' in action else 110
             if self._skip_advance:                # scramble frame: anim already = ess_start
                 self._skip_advance = False
@@ -702,29 +712,31 @@ class SwimState:
             # transient the old fixed +1/6 ess_decay missed). A 'neu' held-exit frame has a
             # neutral stick -> no swim input -> facing frozen.
             if is_chg:
-                swim_gain = self._swim_facing(*self._chg_stick())
+                swim_gain = self._swim_facing(*self._chg_stick(chg_up))
             elif action.startswith('ess'):
                 swim_gain = self._swim_facing(128, rawY)
             else:                                 # 'neu' held-exit frame (neutral stick)
                 swim_gain = ess_decay(rawY)       # validated exit-frame decay (facing frozen)
-            if self._pending_gain:                # a charge's gain landed this frame...
-                self.v = f32(self.v + self._pending_gain)   # ...replacing this frame's decay
+            # setSpeedAndAngleSwim gain lags ONE frame UNIFORMLY for ESS and charge (lands
+            # next frame via _pending_gain). See history/resolved-bugs.md#bug3.
+            if self._pending_gain:                # gain scheduled last frame lands now,
+                self.v = f32(self.v + self._pending_gain)   # replacing this frame's decay
                 self._pending_gain = 0.0
-                if action.startswith('ess'):      # this ESS frame's own facing-snap gain is
-                    self._post_burst_transient = swim_gain   # preempted -> carry it 1 frame
             elif self._entry_tax and not is_chg:  # one-time -3 facing-flip transient (slate)
                 self.v = f32(self.v - 3.0)
                 self._entry_tax = False
-            elif is_chg:                          # 1st charge of a burst: no pending gain yet
-                self.v = f32(self.v + ess_decay(rawY))   # this frame still decays (lag)
-            elif self._post_burst_transient is not None:  # carried post-burst transient lands
-                self.v = f32(self.v + self._post_burst_transient)   # (ODD burst: -1/6 opposed;
-                self._post_burst_transient = None # EVEN burst: +1/6 == this frame's gain, no-op)
+            elif is_chg:                          # 1st charge of a cold burst: no pending
+                self.v = f32(self.v + ess_decay(rawY))   # gain yet; this frame still decays
+            elif self._post_burst_transient is not None:  # legacy carry (now unused; kept
+                self.v = f32(self.v + self._post_burst_transient)   # for safety/no-op)
+                self._post_burst_transient = None
             else:
-                self.v = f32(self.v + swim_gain)  # ESS facing-based gain (+1/6 aligned, etc.)
+                self.v = f32(self.v + swim_gain)  # 1st ESS of a cold burst (no pending): the
+                #   facing-based gain lands this frame (no prior frame scheduled one).
+            if action.startswith('ess') or is_chg:   # schedule THIS frame's gain for next
+                self._pending_gain = swim_gain        # frame (uniform 1-frame lag, decomp).
             if is_chg:
-                self._pending_gain = swim_gain    # charge gain (snap -> -3, aligned -> +3)
-                self._pending_flip = True         # lands next frame (1-frame lag)
+                self._pending_flip = True         # charge facing flip also lands next frame
             fac = CHARGE_DISP_FACTOR if is_chg else 1.0
             d = self._move(fac * true_disp(self.v, self.anim, self.air))
             tag = 'CHG' if is_chg else 'ESS'

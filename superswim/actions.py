@@ -32,11 +32,17 @@ def acts_to_seq(acts):
     for a in acts:
         if a == 'ess':
             sx, sy = ESS
+        elif a.startswith('ess:'):                  # partial on-axis hold (128, rawY)
+            sx, sy = 128, int(a[4:])
         elif a == 'neu':
             sx, sy = NEU
         elif a == 'chg':
             chg += 1
             sx, sy = CHG_UP if chg % 2 == 1 else CHG_DN
+        elif a.startswith('chg:'):                  # partial charge: up stroke (128,rawY),
+            chg += 1                                 # down stroke mirrored about 128 (matches
+            up = int(a[4:])                          # SwimState._chg_stick(up_raw))
+            sx, sy = (128, up) if chg % 2 == 1 else (128, 256 - up)
         else:
             raise ValueError(f"unknown action {a!r} in seq")
         out.append({"stickX": sx, "stickY": sy, "substickY": 0, "frames": 1})

@@ -55,10 +55,14 @@ SUITE = [
     # setNormalSpeedF target-chase (~0.1). Diverges at f40 (v>0). Fix in step() state-55 gain.
     ("test_lowspeed_seq.txt",  "bug1 v>=0 tail", True,
      "v>=0 forward-swim gain (setNormalSpeedF chase)"),
-    # BUG #2: lone cruise-exit neu then re-enter -> sim fires pump scramble 1 frame early
-    # (sim st55+raw anim while live st54). Diverges at f397. Fix in proc transition lag.
+    # BUG #2: advanceseq gives a FALSE pass here (sim -65 matches the jittery pipe; clean DTM
+    # truth is v=-775). NOT fixed -- validate via run_dtm. See history/open-questions.md#bug2.
     ("test_pumptrans_seq.txt", "bug2 neu-pump", True,
-     "neu->ess->ess pump-transition state timing"),
+     "FALSE advanceseq pass; clean DTM v=-775 vs sim -65 -- still broken, validate via run_dtm"),
+    # BUG #3 (FIXED 2026-06-30): partial hold mid-charge; uniform swim-gain lag (sim.py step()).
+    # Baseline guard now. See history/resolved-bugs.md#bug3.
+    ("partial_hold77_seq.txt",  "bug3 partial hold", False,
+     ""),
 ]
 
 # expand / acts_to_seq / animdiff now live in superswim.actions; wnamed in harness.live

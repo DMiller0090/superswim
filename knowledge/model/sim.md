@@ -35,7 +35,11 @@ rounding (~0.004 entry residual otherwise).
 Charging is governed by four separate live-calibrated lags (each measured against unrounded RAM):
 1. **Anim-rate lag** — the anim controller advances using the PREVIOUS frame's speed; advance anim
    *before* applying the speed change.
-2. **Charge +3 lag** — a `chg` frame's +3 lands on the NEXT frame, replacing that frame's decay.
+2. **Swim-gain lag (uniform)** — the `setSpeedAndAngleSwim` gain (charge +3 *and* the ESS
+   facing-gain alike) lands on the NEXT frame, replacing that frame's decay. ESS and charge use
+   the SAME 1-frame deferral (as `ArrowState` does). The earlier asymmetric same-frame-ESS /
+   lagged-charge split dropped a partial hold's last gain at a hold→charge boundary — see
+   [resolved BUG #3](../history/resolved-bugs.md#bug3--partial-hold-gain-dropped-at-a-holdcharge-boundary).
 3. **First-charge decay** — the first `chg` of a burst still applies the normal ESS decay; +3
    engages from the 2nd frame.
 4. **Facing flip** — each `chg` toggles a 180° facing flip applied the next frame; even-length
