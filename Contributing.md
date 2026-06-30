@@ -1,7 +1,18 @@
 # Contributing to superswim
 
-Short, repo-specific conventions. The mechanics source of truth is `SUPERSWIM_KNOWLEDGE.md`.
+Short, repo-specific conventions. The source of truth for mechanics/strategy/model is the knowledge
+base under [`knowledge/`](knowledge/) — start at [`knowledge/README.md`](knowledge/README.md).
 (Session handoffs are local working notes under `_notes/`, not tracked in the repo.)
+
+## Keep the knowledge base current
+
+Treat docs like code. **A behavior change isn't done until the owning `knowledge/` page is updated**
+(and its `Status:`/`Source:` header). When a finding is overturned, MOVE the old claim into
+`knowledge/history/` (tag `status: historical`) rather than leaving it on a truth page. Keep one
+canonical value per constant in `knowledge/reference/constants.md` and link to it. New pages follow
+the template in `knowledge/README.md`. The offline `pytest` gate includes `tests/test_kb_links.py`
+(every relative link + `#anchor` must resolve); the deeper weak-agent doc-eval lives under
+`knowledge/_eval/` — re-run it when a topic's pages change substantially.
 
 ## Setup
 

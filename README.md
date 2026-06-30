@@ -49,11 +49,13 @@ emit an animated HTML viewer with `viz=out.html`).
 
 ## Docs
 
-- [`SUPERSWIM_KNOWLEDGE.md`](SUPERSWIM_KNOWLEDGE.md) — **source of truth** for the mechanics & TAS optimization.
-- [`knowledge/`](knowledge/) — the knowledge base; start at [`knowledge/README.md`](knowledge/README.md).
-  Reference: [`reference/data.md`](knowledge/reference/data.md) (measurement tables),
-  [`reference/addresses.md`](knowledge/reference/addresses.md) (JP map addresses),
-  [`reference/constants.md`](knowledge/reference/constants.md). Camera: [`mechanics/camera.md`](knowledge/mechanics/camera.md).
+- **Source of truth: the knowledge base** under [`knowledge/`](knowledge/) — start at the
+  question-indexed hub [`knowledge/README.md`](knowledge/README.md). Organized by layer:
+  `mechanics/` (game truth), `strategy/` (TAS heuristics), `model/` (sim/planner), `reference/`
+  ([constants](knowledge/reference/constants.md), [glossary](knowledge/reference/glossary.md),
+  [addresses](knowledge/reference/addresses.md), [commands](knowledge/reference/commands.md),
+  [data](knowledge/reference/data.md)), `history/` (provenance). The root
+  [`SUPERSWIM_KNOWLEDGE.md`](SUPERSWIM_KNOWLEDGE.md) is a thin pointer to the hub.
 
 ## Testing
 

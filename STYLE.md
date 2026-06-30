@@ -17,11 +17,11 @@ rationale; comment to preserve that, not to narrate the obvious.
 ## 2. Long comment? Promote it to the knowledge base
 
 A comment that needs more than ~2 lines is usually explaining *mechanics or a derivation*, not a
-local *why*. Prefer to move that explanation into the knowledge base (`knowledge/` or
-`SUPERSWIM_KNOWLEDGE.md`) and leave a one-line pointer in the code:
+local *why*. Prefer to move that explanation into the knowledge base (the owning page under
+`knowledge/`; start at `knowledge/README.md`) and leave a one-line pointer in the code:
 
 ```python
-# release uses the looped SWIMWAIT frame, not a raw add; see knowledge/SUPERSWIM_KNOWLEDGE.md "exit"
+# release uses the looped SWIMWAIT frame, not a raw add; see knowledge/mechanics/neutral.md
 ```
 
 - **Why:** code stays scannable; the mechanics live in one discoverable, cross-referenced place;
@@ -41,8 +41,8 @@ to the knowledge base, tighten to one line, or (rarely) bypass with `git commit 
 - **Explain *why*, or a non-obvious *consequence* — not the obvious *what*.** Good:
   `# x598 scramble amplifies the sub-ULP oldframe error ~600x`. Bad: `# loop over the frames`.
 - **State facts, present tense, declaratively.** Describe how the game/code behaves.
-- **Cite the ground truth** for physics claims where it helps (`SUPERSWIM_KNOWLEDGE.md`, a decomp
-  file/line, or a `knowledge/` doc).
+- **Cite the ground truth** for physics claims where it helps (a `knowledge/` page, a decomp
+  file/line, or a Claude memory).
 - **No emoji. No decorative dividers / ASCII art. No restating the function name.**
 
 ## 4. Boilerplate tells to avoid

@@ -25,7 +25,9 @@ is wrong.
 
 **Stick distance:** `mStickDistance = clamp((|raw − 128| − 15) / 54, 0, 1)` (cardinal).
 
-## Speed deltas (potential speed, per frame)
+## Speed deltas
+
+Per frame, to potential speed:
 
 | Regime | Δ potential speed | Notes | Source |
 |--------|-------------------|-------|--------|
