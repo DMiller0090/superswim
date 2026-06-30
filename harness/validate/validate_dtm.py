@@ -1,6 +1,13 @@
 """Faithful, pipe-artifact-free validator: author a clean DTM for a plan seq, play it
 via the movie system, and compare the live endpoint to the SwimState sim.
 
+NOTE: this is the original single-purpose validator (action-seq files, the cold anchor, a
+SwimState compare, free-run-to-exhaustion read that races on short movies). For new work
+prefer the generalized engine **`harness/dtm/run_dtm.py`** — it takes arbitrary sticks +
+expected values, derives the iso from a test-owned anchor's `@<isokey>` name, validates
+facing too, and frame-steps short movies deterministically. This file is kept for the
+existing cruise_pump300k regression flow.
+
 Why this and not the advanceseq pipe (pt-21): the external pipe's FrameAdvance-listener
 jitters SI polls on dense back-to-back dips, slipping inputs (dense cruise_pump300k bled
 to ~127k live vs the sim's ~300k). Movie playback flips WantDeterminism on and polls at
