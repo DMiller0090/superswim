@@ -62,14 +62,14 @@ def run_case(fname):
 # fail the offline suite on them, but we DO regression-lock their CURRENT worst-case error
 # so the predictor can't silently get worse; cap_camchaos is asserted strictly bit-exact.
 # Bounds are the current measured errors rounded up slightly.
-# Re-baselined for the full stick-angle grid: it shifted v/pos on these arbitrary-stick cases
-# (the still-open arbitrary-stick v/pos residual the sparse table masked); cam + on-axis unaffected.
+# Stick-angle grid re-dumped via the raw-byte (advancewith) path -> v/anim now bit-exact; the
+# residual cam=1-2hw + tiny pos is the separate coarse-omega-grid camera-prediction issue.
 import pytest  # noqa: E402  (kept below the script body so `python tests/test_complicated.py` is unaffected)
 
 _BIT_EXACT = {"cap_camchaos.csv"}
-_CHAR_BOUNDS = {            # known-imperfect cases: (cam_hw, v, anim, pos) ceilings
-    "cap_randcharge.csv": (2, 0.012, 1e-2, 1.9),
-    "gen_charge.csv":     (3, 0.012, 1e-2, 0.7),
+_CHAR_BOUNDS = {            # camera-only residual (coarse omega grid); v/anim now bit-exact
+    "cap_randcharge.csv": (1, 1e-4, 1e-3, 0.3),
+    "gen_charge.csv":     (2, 1e-4, 1e-3, 0.2),
 }
 
 
