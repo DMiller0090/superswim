@@ -58,7 +58,7 @@ def run_case(fname):
 
 # --- pytest entry points (offline; reads tests/*.csv, no Dolphin) ----------------------
 # All three cases are strictly bit-exact (cam 0 hw, v 0, anim 0, pos at the f32 floor). The old
-# cam=1-2hw bound on the random-camera cases was the corrupt omega grid (see knowledge/CAMERA_MODEL.md).
+# cam=1-2hw bound on the random-camera cases was the corrupt omega grid (see knowledge/history/camera-model-history.md).
 import pytest  # noqa: E402  (kept below the script body so `python tests/test_complicated.py` is unaffected)
 
 _BIT_EXACT = {"cap_camchaos.csv", "cap_randcharge.csv", "gen_charge.csv"}

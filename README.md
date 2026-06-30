@@ -50,8 +50,10 @@ emit an animated HTML viewer with `viz=out.html`).
 ## Docs
 
 - [`SUPERSWIM_KNOWLEDGE.md`](SUPERSWIM_KNOWLEDGE.md) — **source of truth** for the mechanics & TAS optimization.
-- [`knowledge/`](knowledge/) — `SUPERSWIM_DATA.md` (measurement tables), `CAMERA_MODEL.md` +
-  `SWIM_CAMERA_PREDICT_NOTES.md` (camera steering), `jp_swim_addrs.md` (JP map addresses).
+- [`knowledge/`](knowledge/) — the knowledge base; start at [`knowledge/README.md`](knowledge/README.md).
+  Reference: [`reference/data.md`](knowledge/reference/data.md) (measurement tables),
+  [`reference/addresses.md`](knowledge/reference/addresses.md) (JP map addresses),
+  [`reference/constants.md`](knowledge/reference/constants.md). Camera: [`mechanics/camera.md`](knowledge/mechanics/camera.md).
 
 ## Testing
 

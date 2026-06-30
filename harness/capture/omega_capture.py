@@ -4,7 +4,7 @@ C-stick (csx,csy) values, live from Dolphin, cached in omega_table.csv.
 WHY: the camera yaw is csangle = (cam_yaw + 0x8000) & 0xFFFF, where cam_yaw chases an
 accumulator cam_target via cam_yaw += int((s16)(cam_target - cam_yaw) / 2) and
     cam_target += omega_cmd(csx, csy)     (1-frame input lag)
-(verified bit-exact, see camera_exact.py / knowledge/SWIM_CAMERA_PREDICT_NOTES.md). The original
+(verified bit-exact, see camera_exact.py / knowledge/mechanics/camera.md). The original
 camera_exact omega_cmd was a function of csx ONLY (with a csy<=64 'freeze'); that is WRONG
 for arbitrary csy. Live RE shows omega depends on the WHOLE C-stick vector: csy modulates the
 horizontal rate (e.g. csx=255: csy in [32,220] -> 546, but csy=255 -> 199, csy=0 -> 173; the

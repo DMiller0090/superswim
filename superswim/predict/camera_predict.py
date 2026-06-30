@@ -1,6 +1,6 @@
 """camera_predict.py — predict the camera yaw (csangle) per frame from the C-stick.
 
-Empirical law (live-derived 2026-06-28, see knowledge/CAMERA_MODEL.md), regime-independent
+Empirical law (live-derived 2026-06-28, see knowledge/mechanics/camera.md), regime-independent
 (static AND mid-swim): the C-stick X commands an angular VELOCITY omega_cmd; the actual
 rate chases it with factor 0.5; the yaw integrates the rate; there is a 1-frame input lag.
 

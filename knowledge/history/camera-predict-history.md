@@ -1,5 +1,9 @@
 # Swim + Camera position predictor — bit-accuracy research log (2026-06-28)
 
+> **status: historical** — research log / provenance, NOT current truth. Current camera law:
+> [mechanics/camera.md](../mechanics/camera.md); predictor architecture: [model/predictors.md](../model/predictors.md).
+> This page is the full bit-accuracy derivation (GAP 1/GAP 2, ordering, the resolved off-axis residual).
+
 GOAL (user): from slate 10, given a sequence of (main-stick + C-stick) inputs, predict
 **bit-exactly** where the CAMERA (csangle) is AND where Link (link_x/z) is, every frame —
 INCLUDING while moving. The existing `superswim_sim.py` is bit-exact for v/anim/air/state

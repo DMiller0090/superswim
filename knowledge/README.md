@@ -1,0 +1,87 @@
+# Superswim knowledge base
+
+The retrieval-first knowledge base for TWW superswim mechanics, strategy, and the sim/planner
+model. **Start here** — find your question below, follow the link, read one small page.
+
+## How this is organized
+
+Knowledge is split by **layer** — different kinds of fact with different lifespans:
+
+| Layer | What | Lifespan |
+|-------|------|----------|
+| [`mechanics/`](mechanics/) | Game truth — formulas, constants, decomp-grounded behavior | timeless |
+| [`strategy/`](strategy/) | TAS heuristics — reboost, dips, phase ordering | evolves |
+| [`model/`](model/) | How the sim/planner implements it (precision, traps, predictors) | tracks code |
+| [`reference/`](reference/) | [Constants](reference/constants.md), [addresses](reference/addresses.md), [glossary](reference/glossary.md), [commands](reference/commands.md), [data](reference/data.md) | lookup |
+| [`history/`](history/) | Provenance, dead ends, superseded conclusions, open questions | frozen |
+
+**`history/` is not current truth** — its pages carry a `status: historical` banner. When you grep
+for an answer, prefer the mechanics/strategy/model/reference pages; only read history for "how did we
+get here" or provenance. Every page opens with an **`Answers:` / `Status:` / `Source:`** header so
+you can triage in one glance.
+
+## Question index
+
+### Basics
+- **What is superswimming / potential vs true speed?** → [mechanics/overview.md](mechanics/overview.md)
+- **What does <term> mean?** (csangle, ESS, head-bob, x598, …) → [reference/glossary.md](reference/glossary.md)
+- **What is the value of <constant>?** → [reference/constants.md](reference/constants.md)
+- **How do I run the sim / planner / a live test?** → [reference/commands.md](reference/commands.md)
+
+### Charging, ESS, neutral, decay
+- **How fast does charging build speed / what's the gain formula?** → [mechanics/charging.md](mechanics/charging.md)
+- **What is ESS / what stick values / why is diagonal more efficient?** → [mechanics/ess.md](mechanics/ess.md)
+- **How much speed do I lose for a given stick value?** (continuous decay law) → [mechanics/decay-curve.md](mechanics/decay-curve.md)
+- **What does neutral do / is it really −2 / what's the exit-release speed?** → [mechanics/neutral.md](mechanics/neutral.md)
+- **How does the animation cycle / head-bob drag / true displacement work?** → [mechanics/animation.md](mechanics/animation.md)
+
+### Turnaround & arrow
+- **How do turnaround frames work? What's the angle threshold?** → 45° off straight-back (`0x6000` = 135°) → [mechanics/turnaround.md](mechanics/turnaround.md)
+- **How do you reorient the charge axis?** → [turnaround.md#reorienting-the-charge-axis-turnaround-chains](mechanics/turnaround.md#reorienting-the-charge-axis-turnaround-chains)
+- **What is arrow swimming / charge-rate loss / tip-over / spin-up?** → [mechanics/arrow.md](mechanics/arrow.md)
+- **Does arrow swimming actually save time?** → probably not (loses ~2–4 fr; unproven cold) → [arrow.md#open-question--does-arrow-swimming-save-time](mechanics/arrow.md#open-question--does-arrow-swimming-save-time)
+
+### Strobo & reboost
+- **What is the stroboscopic effect / at what speeds?** → ≈ −794 / ≈ −1630 (air-dependent) → [mechanics/strobo.md](mechanics/strobo.md)
+- **Does reboost save time? How big / when? Why does fixed cadence lose?** → [strategy/reboost.md](strategy/reboost.md)
+
+### Pumps & dips
+- **What is an ESS pump / the 1-frame entry tax / the x598 scramble?** → [mechanics/pumps.md](mechanics/pumps.md)
+- **What is a neutral dip and when does it help?** → [strategy/neutral-dip.md](strategy/neutral-dip.md)
+- **What order do the swim phases go in?** → [strategy/phase-ordering.md](strategy/phase-ordering.md)
+
+### Camera
+- **How does camera yaw affect movement / the steering law / fine steering?** → [mechanics/camera.md](mechanics/camera.md)
+
+### Model (sim / planner)
+- **Why f32 / the console cosine table / CHARGE_DISP_FACTOR / cold-start mRate?** → [model/sim.md](model/sim.md)
+- **How does the planner search / why are mid-swim pumps disabled / the crossover decomposition?** → [model/planner.md](model/planner.md)
+- **What are the predict/ modules / the off-axis residual?** → [model/predictors.md](model/predictors.md)
+
+### Provenance & open work
+- **Was <bug> a physics issue or an artifact?** (bug#2, 554, off-axis, omega grid, cosine table) → [history/resolved-bugs.md](history/resolved-bugs.md)
+- **What's still unresolved?** → [history/open-questions.md](history/open-questions.md)
+
+## Page template (for contributors)
+
+```
+# Title
+**Answers:** <the questions this page answers, in plain language>
+**Status:** validated | approximate | open  (+ how)
+**Source:** decomp <file:line> · live <date> · History: <link>
+---
+<definition → formula → constants (LINK to reference/constants.md, don't restate) → validation>
+## See also
+```
+
+Keep pages **small and single-topic** (one Read should answer the question). Put dated narrative and
+superseded findings in `history/`, not in the truth pages. One canonical value per constant — link
+to [constants.md](reference/constants.md) instead of restating numbers.
+
+If a topic has an **unresolved verdict**, give it a short `## Open question — <current status>`
+section *in the truth page* (state the current best answer + "unproven"), and link to `history/` for
+the provenance. The definitive *current* answer must be reachable from the truth layer — not only
+from a `status: historical` page. (Validated by the doc-eval: weak agents were told to prefer
+non-history pages, so an answer that lives only in history is effectively hidden.)
+
+The KB is regression-tested by a bounded weak-agent eval — bank + harness under [`_eval/`](_eval/).

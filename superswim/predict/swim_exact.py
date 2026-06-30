@@ -7,7 +7,7 @@ Sources (US line nos; JP logic identical):
   - direction: d_a_player_swim.inc::setSpeedAndAngleSwim ~24-50    (m34E8 + 2x cLib_addCalcAngleS)
   - cLib_addCalcAngleS: c_lib.cpp:160-189
   - getSwimTimerRate: d_a_player_swim.inc:280-294  (== superswim_sim _TIMER_K)
-See knowledge/SWIM_CAMERA_PREDICT_NOTES.md for the full derivation + validation.
+See knowledge/history/camera-predict-history.md for the full derivation + validation.
 """
 from __future__ import annotations
 import math

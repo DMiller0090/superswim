@@ -1,5 +1,9 @@
 # Camera steering model — empirical probe (2026-06-28)
 
+> **status: historical** — research log / provenance, NOT current truth. The current camera
+> steering law lives in [mechanics/camera.md](../mechanics/camera.md). This page is kept for the
+> derivation, the live decomp watchpoint work, the omega-grid coarseness fix, and reproduce steps.
+
 Goal: predict the camera yaw (`csangle`) frame-to-frame so it can be used as a **fine
 lateral-steering lever** for superswims (ESS gives only coarse ~45° snap control; the
 camera gives sub-degree control). The offline sim (`superswim_sim.py`) currently treats
