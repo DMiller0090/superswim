@@ -400,6 +400,10 @@ def plan_hierarchical(dest, v, anim, air, cold_start=False, entry_tax=None,
 # ---------------------------------------------------------------------------
 # FRONT-END (charge -> arrow-swim) prefix, composed with the cruise DP.
 # ---------------------------------------------------------------------------
+# Flat cruise speed (units/fr) for the stage-1 RANKING surrogate only (~380 from full-cruise
+# DPs); ranking-only -- the exact cruise DP picks the winner in stage 2, so rough is fine.
+_CRUISE_V_EFF = 380.0
+
 def arrow_schedules(n, alpha_max=S.ARROW_ALPHA_MAX_DEG):
     """Candidate alpha SHAPES over n arrow frames. The optimal control (Pontryagin:
     sin a* = c*v/(12*lambda)) is a ramp from ~0 (bank speed early — progress rate
@@ -492,11 +496,10 @@ def plan_with_frontend(dest, v, anim, air, facing0=90.0, target_bearing=180.0,
         return None
     n_in = len(chain_in)
 
-    # Stage 1: for each arrow LENGTH x schedule SHAPE, rank with the FAST pure-ESS
-    # surrogate (which prices end-speed via frames_to_dest_pure_ess, so it picks the
-    # right progress/end-speed tradeoff -> the ramp knee). One exact cruise DP is ~6s,
-    # so only the top `refine` candidates get the exact DP in stage 2.
+    # Stage 1: rank (length x shape) by a cheap monotone surrogate (prefix frames + flat-speed
+    # remainder); the exact cruise DP picks the winner in stage 2. n_arrow=0 is always refined.
     cands = []
+    baseline = None
     for n_arrow in arrow_lengths:
         shapes = arrow_schedules(n_arrow) if n_arrow > 0 else [[]]
         for sched in shapes:
@@ -505,19 +508,24 @@ def plan_with_frontend(dest, v, anim, air, facing0=90.0, target_bearing=180.0,
                 target_bearing)
             if fair <= 0 or prog >= dest:
                 continue                       # ran out of air / overshoot in prefix
-            sn, _ = frames_to_dest_pure_ess(dest - prog, fv, fa, fair)
-            if sn is None:
-                continue
-            cands.append((fr + sn, n_arrow, fr, fv, fa, fair, prog, sched, n_out))
+            surro = fr + (dest - prog) / _CRUISE_V_EFF
+            cand = (surro, n_arrow, fr, fv, fa, fair, prog, sched, n_out)
+            cands.append(cand)
+            if n_arrow == 0 and (baseline is None or surro < baseline[0]):
+                baseline = cand
     if not cands:
         return None
     cands.sort()
     refine = int(refine)
 
-    # Stage 2: exact cruise DP on the top candidates; keep the min exact total.
+    # Stage 2: exact cruise DP on the top candidates + the baseline; keep min exact total.
+    to_refine = cands[:refine]
+    if baseline is not None and baseline not in to_refine:
+        to_refine.append(baseline)
     best = None
+    base_total = None
     tried = []
-    for surro, n_arrow, fr, fv, fa, fair, prog, sched, n_out in cands[:refine]:
+    for surro, n_arrow, fr, fv, fa, fair, prog, sched, n_out in to_refine:
         cr = plan_min_frames(dest - prog, fv, fa, fair, actions=('ess', 'chg', 'neu'),
                              max_frontier=max_frontier, cap=cap, rank=rank,
                              entry_tax=True, allow_pump=False, verbose=False)
@@ -525,6 +533,8 @@ def plan_with_frontend(dest, v, anim, air, facing0=90.0, target_bearing=180.0,
             continue
         total = fr + cr['frames']
         tried.append((total, n_arrow, fr, prog, cr['frames']))
+        if n_arrow == 0 and (base_total is None or total < base_total):
+            base_total = total          # no-arrow composite = apples-to-apples baseline
         if best is None or total < best['total']:
             best = {'total': total, 'n_arrow': n_arrow, 'schedule': sched,
                     'n_in': n_in, 'n_out': n_out, 'prefix_frames': fr,
@@ -533,6 +543,7 @@ def plan_with_frontend(dest, v, anim, air, facing0=90.0, target_bearing=180.0,
     if best is None:
         return None
     best['tried'] = sorted(tried)
+    best['base_total'] = base_total     # frames for the no-arrow (reorients-only) plan
     best['surrogate_top'] = [c[:7] for c in cands[:refine]]
     return best
 
@@ -606,16 +617,18 @@ def main():
         facing0 = float(opts.get('facing', '90'))
         tgt = float(opts.get('target', '180'))
         cam = float(opts.get('cam', '270'))
-        bn, bx = frames_to_dest_pure_ess(dest, v, anim, air)
-        bn_str = f"{bn} fr" if bn is not None else f">cap (reached {bx:.0f})"
-        print(f"baseline pure ESS to dest {dest:.0f}: {bn_str}")
         b = plan_with_frontend(dest, v, anim, air, facing0=facing0,
                                target_bearing=tgt, cam_deg=cam,
                                max_frontier=max_frontier, cap=cap, rank=rank)
         if b is None:
             print("frontend: no composite plan found")
             return
-        saved = f"  ({bn - b['total']:+d} fr vs pure ESS)" if bn is not None else ""
+        bn = b.get('base_total')
+        if bn is not None:
+            print(f"baseline no-arrow composite (reorients + cruise) to dest "
+                  f"{dest:.0f}: {bn} fr")
+        saved = (f"  ({bn - b['total']:+d} fr vs no-arrow baseline)"
+                 if bn is not None else "")
         sch = b['schedule']
         sch_str = (f"{sch[0]:.0f}->{sch[-1]:.0f} deg ramp" if sch else "none")
         print(f"\nFRONTEND PLAN: {b['total']} frames total{saved}")
