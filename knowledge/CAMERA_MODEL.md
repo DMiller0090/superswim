@@ -107,6 +107,31 @@ MBP 80160a0c Write16 ffffc110 ...            # = 49424, the full-right ramp
 - Tools: `bp_camera.py` (arm write-watch, resolves chain live), `bp_clear.py` (clear).
   DebugModeEnabled=True already set (persists); restart Dolphin to drop all memchecks.
 
+## Resolved: the omega (camera-rate) grid was off by +1 (input-path corruption)
+
+For arbitrary C-stick (csy != 128) `omega_cmd` is a 2-D lookup, not the csx-only table above.
+The shipped grid `superswim/tables/omega_table_full.csv` (csx 0..15 x csy 0..255, the
+deep-negative-X band) had been dumped via the in-Dolphin `controller.set_gc_buttons` (calibrated)
+path. That path recorded the negative-saturation omega as **-546** where the raw-byte
+`advancewith` path the swim/tests/DTM actually use gives **-547** — 1816 of 4096 cells off by +1
+(a few edge cells off by more). `camera_arbitrary` loaded that grid LAST, so its -546 clobbered
+the correctly-captured -547 in the fine `omega_table.csv`. This was the cam=1-2hw residual on the
+random-camera charge cases (cap_randcharge / gen_charge).
+
+Fix (2026-06-29): load the fine table last so it wins on overlap, and regenerate the full grid via
+`advancewith` (`harness/capture/omega_full_redump.py`). The regenerated grid agrees with the
+independently-captured fine table on 100% of overlap cells, and both charge cases go cam=0hw.
+
+- **omega in this band is camera-STATE dependent by ±1.** A continuous neutral-settle sweep (no
+  loadstate) drifts -547 → -546 as `cam_target`/`cam_yaw` accumulate; the value the swim
+  experiences is the **from-rest** one. So the dump uses a fresh `loadstate 10` per cell (the
+  gold method, ~1 s/cell under 3-way concurrency). Writing `cam_yaw`/`cam_target` back to rest in
+  place is faster but the camera pointer chain goes null over a long run — use loadstate.
+- **Parallelizable across Dolphin instances.** `dolphin_mem` is per-PID (pipe `DolphinControl-<pid>`,
+  `attach()` resolves MEM1 from `DOLPHIN_PID`), so N instances dump disjoint csx ranges to shard
+  CSVs concurrently (merge via `omega_full_redump.py merge shardN=...`). A savestate-load briefly
+  tears the pipe down (CreateFileW error 2), so wrap pipe/mem calls in a retry.
+
 ## Open / next (to finish before trusting it for plans)
 1. **F32 precision**: we read csangle as u16; the underlying yaw is a float. Capture the f32
    (and confirm k is exactly 0.5 = a >>1, ω_cmd_max exactly 3.0°) for bit-exact sim work.

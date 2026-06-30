@@ -57,34 +57,19 @@ def run_case(fname):
 
 
 # --- pytest entry points (offline; reads tests/*.csv, no Dolphin) ----------------------
-# The two random-camera cases (cap_randcharge / gen_charge) are KNOWN-NOT-bit-exact
-# curve-fit targets (see the module docstring: "currently FAILS — to solve"). We do NOT
-# fail the offline suite on them, but we DO regression-lock their CURRENT worst-case error
-# so the predictor can't silently get worse; cap_camchaos is asserted strictly bit-exact.
-# Bounds are the current measured errors rounded up slightly.
-# Stick-angle grid re-dumped via the raw-byte (advancewith) path -> v/anim now bit-exact; the
-# residual cam=1-2hw + tiny pos is the separate coarse-omega-grid camera-prediction issue.
+# All three cases are strictly bit-exact (cam 0 hw, v 0, anim 0, pos at the f32 floor). The old
+# cam=1-2hw bound on the random-camera cases was the corrupt omega grid (see knowledge/CAMERA_MODEL.md).
 import pytest  # noqa: E402  (kept below the script body so `python tests/test_complicated.py` is unaffected)
 
-_BIT_EXACT = {"cap_camchaos.csv"}
-_CHAR_BOUNDS = {            # camera-only residual (coarse omega grid); v/anim now bit-exact
-    "cap_randcharge.csv": (1, 1e-4, 1e-3, 0.3),
-    "gen_charge.csv":     (2, 1e-4, 1e-3, 0.2),
-}
+_BIT_EXACT = {"cap_camchaos.csv", "cap_randcharge.csv", "gen_charge.csv"}
 
 
 @pytest.mark.parametrize("fname,desc", CASES, ids=[c[0] for c in CASES])
 def test_predict_complicated(fname, desc):
     ok, wcam, wv, wa, wpos = run_case(fname)
-    if fname in _BIT_EXACT:
-        assert ok, ("expected bit-exact for %s but cam=%s v=%g anim=%g pos=%g"
-                    % (fname, wcam, wv, wa, wpos))
-    else:
-        bc, bv, ba, bp = _CHAR_BOUNDS[fname]
-        assert wcam <= bc and wv <= bv and wa <= ba and wpos <= bp, (
-            "%s regressed past its characterization bound: "
-            "cam=%s(<=%s) v=%g(<=%g) anim=%g(<=%g) pos=%g(<=%g)"
-            % (fname, wcam, bc, wv, bv, wa, ba, wpos, bp))
+    assert fname in _BIT_EXACT
+    assert ok, ("expected bit-exact for %s but cam=%s v=%g anim=%g pos=%g"
+                % (fname, wcam, wv, wa, wpos))
 
 
 def main():

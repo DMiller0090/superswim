@@ -28,31 +28,31 @@ import os, csv
 from . import camera_exact as CE
 
 _HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tables")
-# Two live omega sources, both loaded: a COARSE 64x64 grid (omega_table_full.csv, 4096 cells) + fine
-# per-capture cells off it (omega_table.csv). NOT a complete 65536 grid; off-grid raises (see omega_cmd).
+# Two live omega sources (both raw-byte advancewith path, agree bit-exact on overlap): the csx 0..15
+# x csy 0..255 grid omega_table_full.csv + fine per-capture cells omega_table.csv. NOT a 65536 grid.
 _FULL_PATH = os.path.join(_HERE, "omega_table_full.csv")
 _TABLE_PATH = os.path.join(_HERE, "omega_table.csv")
 
 _OMEGA: dict[tuple[int, int], int] = {}
-for _p in (_TABLE_PATH, _FULL_PATH):     # full loaded LAST so it wins on any overlap
+for _p in (_FULL_PATH, _TABLE_PATH):     # fine table loaded LAST so it wins on any overlap
     if os.path.exists(_p):
         for _r in csv.DictReader(open(_p)):
             _OMEGA[(int(_r["csx"]), int(_r["csy"]))] = int(_r["omega"])
 
-_COMPLETE = len(_OMEGA) >= 256 * 256     # only a dense per-cell grid; the shipped grid is a subsample
+_COMPLETE = len(_OMEGA) >= 256 * 256     # not a dense 256x256 grid; csx 0..15 band + captured cells
 
 
 def omega_cmd(csx: int, csy: int) -> int:
     """Per-frame camera-rate command for the C-stick (csx,csy): exact lookup from the live grid +
     captures, the csx-only closed model when csy==128, else raise (off-grid is never approximated;
-    regenerate a denser grid via omega_grid_dump.py if off-grid camera accuracy matters)."""
+    capture the needed cells via harness/capture/omega_capture.py if off-grid accuracy matters)."""
     csx, csy = int(csx), int(csy)
     if (csx, csy) in _OMEGA:
         return _OMEGA[(csx, csy)]
     if csy == 128:                       # csx-only regime: the closed model is exact here
         return CE.omega_cmd(csx, csy)
     raise KeyError(f"omega for C-stick ({csx},{csy}) missing (table complete={_COMPLETE}); "
-                   f"re-run tww-python-scripts/omega_grid_dump.py to rebuild the full grid")
+                   f"capture it via harness/capture/omega_capture.py --sticks {csx},{csy}")
 
 
 def has(csx: int, csy: int) -> bool:

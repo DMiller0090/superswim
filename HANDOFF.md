@@ -62,12 +62,16 @@ residual lives in the **angle/snap/camera coupling** (note the residual cam 1–
 `_CHAR_BOUNDS` as-is; do NOT tighten. A genuinely-partial OFF-axis live capture is still untested
 (both closed /54 and the grid column are unproven off-axis where they don't saturate).
 
-## >>> KNOWN GAP: the omega (camera-rate) grid is a coarse 4096-cell subsample <<<
-See memory [[superswim-omega-grid-coarse]]. `superswim/tables/omega_table_full.csv` is a 64x64 grid
-(4096) + fine captures, NOT a complete 65536-cell grid; `camera_arbitrary.omega_cmd` is exact
-on-grid / csy==128 and raises off-grid (never approximates). Docs corrected this session. Remediation
-(separate live task): regenerate a denser grid via `tww-python-scripts/omega_grid_dump.py`. Matters
-only if charge/camera steering drifts on arbitrary C-stick directions.
+## >>> RESOLVED (2026-06-29): the omega (camera-rate) grid was corrupt (input-path off-by-one) <<<
+See memory [[superswim-omega-grid-coarse]] + knowledge/CAMERA_MODEL.md ("Resolved: the omega grid").
+`omega_table_full.csv` (csx 0..15 x csy 0..255) had been dumped via `set_gc_buttons` (calibrated
+path), recording the neg-saturation omega as -546 where the raw-byte `advancewith` path the swim
+uses gives -547 (1816/4096 cells off by +1), and it loaded LAST so it clobbered the correct fine
+`omega_table.csv`. Fix: load the fine table last + regenerate the grid via `advancewith`
+(`harness/capture/omega_full_redump.py`). The two tables now agree on 100% of overlap; cap_randcharge
+/ gen_charge go cam=0hw (were 1-2hw) and are promoted to bit-exact. Still NOT a complete 65536 grid
+(csx 0..15 band + captured cells); off-grid (csy != 128) still raises -- capture cells on demand via
+`harness/capture/omega_capture.py --sticks csx,csy` if a route needs an off-grid C-stick.
 
 ## >>> pt 22 (2026-06-29) — REPO turned into a shareable `superswim` PACKAGE + a two-gate test model. KEY LESSON: the sim cold-start seed needs the live mRate, not anim alone. <<<
 Read [[superswim-repo-layout]], [[superswim-regression-suite]], [[superswim-554-resolved]] first.
