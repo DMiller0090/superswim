@@ -78,9 +78,11 @@ closed form — is authoritative. → [model/predictors](../model/predictors.md#
 
 The camera-rate grid had the same input-path bug (`set_gc_buttons` recorded −546 where `advancewith`
 gives −547; 1816/4096 cells off by +1), and the shipped grid had been a **coarse 4096-cell
-subsample**. Regenerated as the full raw-byte grid (`omega_full_redump.py`); charge cases go cam=0hw
-(commit ff1bbfb). Dump method: fresh `loadstate 10` per cell (the value the swim experiences is the
-from-rest one). → [mechanics/camera](../mechanics/camera.md), [camera-model-history](camera-model-history.md).
+subsample** (csx 0..15 only), so `camera_arbitrary` raised KeyError off-grid for csy ≠ 128.
+Regenerated first as the raw-byte grid (`omega_full_redump.py`), then **completed to the full
+csx 0..255 × csy 0..255 = 65536 grid** (2026-07-01) — no more off-grid gaps; charge cases go cam=0hw.
+Dump method history and the fast in-place redump are in
+[camera-model-history](camera-model-history.md#omega-grid-completed). → [mechanics/camera](../mechanics/camera.md).
 
 ## Console cosine table — 1-ULP exits
 

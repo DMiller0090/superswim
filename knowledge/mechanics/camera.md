@@ -2,9 +2,10 @@
 
 **Answers:** How does the camera yaw affect movement? What's the per-frame camera-rate law? How do
 you steer finely with the C-stick? Is omega speed-dependent?
-**Status:** validated (live RE + exact integer recurrence in `superswim/predict/camera_exact.py`).
+**Status:** validated (live RE + exact integer recurrence in `superswim/predict/camera_exact.py`;
+the ω lookup is now the complete 65536-cell grid, offline-locked by `tests/test_omega_table_integrity.py`).
 F32-precision of the internal ω and the auto-flip envelope are open.
-**Source:** live RE 2026-06-28; decomp symbols below. Research log: [history/camera-predict-history](../history/camera-predict-history.md).
+**Source:** live RE 2026-06-28; grid completed 2026-07-01; decomp symbols below. Research log: [history/camera-predict-history](../history/camera-predict-history.md).
 
 ---
 
@@ -42,13 +43,16 @@ target += omega_cmd(csx, csy)            # 1-frame input lag
 yaw    += int((s16)(target − yaw) / 2)   # C integer divide, truncates toward 0
 csangle = (yaw + 0x8000) & 0xFFFF
 ```
-- `omega_cmd` is a **live 65536-cell lookup** of (csx, csy), **speed-independent** (verified). The
-  integer truncating divide reproduces both the build ramp and the release tail — a `round(omega)`
-  model cannot.
+- `omega_cmd` is a **live 65536-cell lookup** of the full (csx 0..255, csy 0..255) grid,
+  **speed-independent** (verified) and genuinely **2-D** — csy modulates the horizontal rate (e.g.
+  csx=255: csy 32..220 → +546, but csy=255 → 199, csy=0 → 173). No off-grid gaps. The integer
+  truncating divide reproduces both the build ramp and the release tail — a `round(omega)` model cannot.
 - **Rest state:** with neutral C-stick, `target == yaw − 1` (a fixed −1 offset holds yaw still, since
   `int(−1/2) == 0`).
-- `omega_cmd` is **asymmetric**: deadzone `+d ≤ 20` / `−d ≤ 19` → 0; saturation `csx ≥ 175 → +546`,
-  `csx ≤ 81 → −547` (= ±3.0°/frame, |d| ≥ 47). E.g. csx 160 (+32) → +18 but csx 96 (−32) → −19.
+- `omega_cmd` is **asymmetric**: saturation `csx ≥ 175 → +546`, `csx ≤ 81 → −547` (= ±3.0°/frame,
+  |d| ≥ 47). E.g. csx 160 (+32) → +18 but csx 96 (−32) → −19. The true low-side deadzone (→ 0)
+  begins at **csx 113** (csx 109..112 give −1) — `camera_exact.py`'s "109..148 → 0" comment is a
+  ±1 edge approximation; the 2-D table carries the exact values.
 
 ## omega_cmd(substickX) — the steering band
 
@@ -94,7 +98,7 @@ RE'd live, not decompiled). Full address list: [reference/addresses](../referenc
 - Negative fine-band symmetry sweep.
 
 See [history/camera-predict-history](../history/camera-predict-history.md) for the full RE log and
-the omega-grid coarseness fix.
+[history/camera-model-history](../history/camera-model-history.md) for the omega-grid completion.
 
 ## See also
 

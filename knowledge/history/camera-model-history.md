@@ -2,7 +2,7 @@
 
 > **status: historical** — research log / provenance, NOT current truth. The current camera
 > steering law lives in [mechanics/camera.md](../mechanics/camera.md). This page is kept for the
-> derivation, the live decomp watchpoint work, the omega-grid coarseness fix, and reproduce steps.
+> derivation, the live decomp watchpoint work, the omega-grid completion, and reproduce steps.
 
 Goal: predict the camera yaw (`csangle`) frame-to-frame so it can be used as a **fine
 lateral-steering lever** for superswims (ESS gives only coarse ~45° snap control; the
@@ -126,15 +126,39 @@ Fix (2026-06-29): load the fine table last so it wins on overlap, and regenerate
 `advancewith` (`harness/capture/omega_full_redump.py`). The regenerated grid agrees with the
 independently-captured fine table on 100% of overlap cells, and both charge cases go cam=0hw.
 
-- **omega in this band is camera-STATE dependent by ±1.** A continuous neutral-settle sweep (no
-  loadstate) drifts -547 → -546 as `cam_target`/`cam_yaw` accumulate; the value the swim
-  experiences is the **from-rest** one. So the dump uses a fresh `loadstate 10` per cell (the
-  gold method, ~1 s/cell under 3-way concurrency). Writing `cam_yaw`/`cam_target` back to rest in
-  place is faster but the camera pointer chain goes null over a long run — use loadstate.
+<a id="omega-grid-completed"></a>
+## Resolved: the omega grid is now the complete 65536 grid (fast in-place redump)
+
+The `omega_full_redump.py` grid above still only covered csx 0..15 × csy 0..255 (4096 cells), so
+`camera_arbitrary.CameraArbitrary` raised KeyError for any off-grid (csx, csy) with csy ≠ 128.
+Completed 2026-07-01 to the **full csx 0..255 × csy 0..255 = 65536 grid** in
+`superswim/tables/omega_table_full.csv` — no more off-grid gaps. Offline-locked by
+`tests/test_omega_table_integrity.py` (completeness + bounded + saturation constants + gold-overlap match).
+
+- **omega = the steady per-frame d(cam_target)** while a C-stick is held with a **neutral main stick**
+  (so facing can't confound it). Genuinely 2-D: csy modulates the rate (csx=255: csy 32..220 → +546,
+  csy=255 → 199, csy=0 → 173). Saturation constants `csx ≥ 175 → +546`, `csx ≤ 81 → −547` (at csy=128);
+  the low-side deadzone (→ 0) begins at csx 113 (csx 109..112 give −1).
+- **Fast dump method** (`harness/capture/omega_grid_redump.py`): instead of a full `loadstate` per
+  cell (`omega_full_redump.py`, ~2.8 s/cell), reset cam_yaw/cam_target + air/speed + Link **position**
+  to their rest values via memory writes per cell, plus a settle ramp and a per-cell stability verify
+  — ~600 ms/cell. Orchestrated across 4 Dolphin instances by `run_parallel_dump.py kind=omega
+  instances=4` (6 instances crashed under resource pressure).
+- **Validated bit-identical** to the loadstate-gold method on a 91-cell spread (deadzone, ramps,
+  saturation, csy-modulation) and matches all 230 gold `omega_table.csv` cells with 0 mismatch.
+- **Why in-place resetting now works** (overturning the earlier note that "the camera pointer chain
+  goes null over a long run — use loadstate"): the chain went null because Link drifted into geometry.
+  Re-locking Link **position** per cell keeps him in place, plus null-recovery handles any tear-down.
+  omega depends only on `cam_target`, and a memory write to `cam_target` STICKS (`cam_yaw` is
+  float-derived and gets overwritten by the game, but that doesn't matter), so the fast method
+  reproduces the gold values exactly.
+- **omega in this band is still camera-STATE dependent by ±1** (a free neutral-settle sweep drifts
+  −547 → −546 as the accumulators move); the value the swim experiences is the **from-rest** one,
+  which is what the per-cell reset + settle captures.
 - **Parallelizable across Dolphin instances.** `dolphin_mem` is per-PID (pipe `DolphinControl-<pid>`,
   `attach()` resolves MEM1 from `DOLPHIN_PID`), so N instances dump disjoint csx ranges to shard
-  CSVs concurrently (merge via `omega_full_redump.py merge shardN=...`). A savestate-load briefly
-  tears the pipe down (CreateFileW error 2), so wrap pipe/mem calls in a retry.
+  CSVs concurrently. A savestate-load briefly tears the pipe down (CreateFileW error 2), so wrap
+  pipe/mem calls in a retry.
 
 ## Open / next (to finish before trusting it for plans)
 1. **F32 precision**: we read csangle as u16; the underlying yaw is a float. Capture the f32

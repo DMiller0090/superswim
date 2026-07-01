@@ -21,8 +21,8 @@ import dolphin_mem as dm
 EXE = os.environ.get("DOLPHIN_EXE", os.path.join(
     os.path.dirname(_rb), "Dolphin-Zelda-TAS-Edition", "Binary", "x64", "Release", "Dolphin.exe"))
 ISO = os.environ.get("TWW_ISO", r"C:\Users\pinhi\Documents\ISOs\twwgz.iso").replace("\\", "/")
-DUMPER = os.path.join(_rb, "harness", "capture", "stick_grid_redump.py")
 GEN = os.path.join(_rb, "_generated")
+CAP = os.path.join(_rb, "harness", "capture")
 
 
 def pipe_ok(pid):
@@ -76,11 +76,22 @@ def shard_ranges(n):
     return [(edges[i], edges[i + 1] - 1) for i in range(n)]
 
 
+# kind -> (dumper script, shard-arg prefix, shard-file prefix, merged file, extra pass-through keys)
+KINDS = {
+    "stick": ("stick_grid_redump.py", "sx", "stick_shard", "stick_angle_full.csv", ["settle"]),
+    "omega": ("omega_grid_redump.py", "csx", "omega_shard", "omega_grid_full.csv",
+              ["settle", "method", "slot"]),
+}
+
+
 def main():
     o = dict(t.split("=", 1) for t in sys.argv[1:] if "=" in t)
     n = int(o.get("instances", "4"))
-    settle = int(o.get("settle", "4"))
     maxcells = int(o.get("maxcells", "0"))
+    kind = o.get("kind", "stick")
+    dumper_name, axis, shard_prefix, merged_name, passthru = KINDS[kind]
+    dumper = os.path.join(CAP, dumper_name)
+    extra = [f"{k}={o[k]}" for k in passthru if k in o]
     os.makedirs(GEN, exist_ok=True)
 
     if o.get("nokill", "0") not in ("1", "true"):
@@ -98,24 +109,23 @@ def main():
     ranges = shard_ranges(n)
     procs = []
     for pid, (lo, hi) in zip(pids, ranges):
-        out = os.path.join(GEN, f"stick_shard_{lo}_{hi}.csv")
-        args = [sys.executable, DUMPER, f"sxlo={lo}", f"sxhi={hi}", f"out={out}",
-                f"settle={settle}", f"pid={pid}"]
+        out = os.path.join(GEN, f"{shard_prefix}_{lo}_{hi}.csv")
+        args = [sys.executable, dumper, f"{axis}lo={lo}", f"{axis}hi={hi}", f"out={out}",
+                f"pid={pid}"] + extra
         if maxcells:
             args.append(f"maxcells={maxcells}")
-        logf = open(os.path.join(GEN, f"shard_{lo}_{hi}.log"), "w")
-        print(f"  shard sx {lo}..{hi} -> pid {pid} ({os.path.basename(out)})")
+        logf = open(os.path.join(GEN, f"{shard_prefix}_{lo}_{hi}.log"), "w")
+        print(f"  shard {axis} {lo}..{hi} -> pid {pid} ({os.path.basename(out)})")
         procs.append((subprocess.Popen(args, stdout=logf, stderr=subprocess.STDOUT), out))
 
-    print("dumping (see _generated/shard_*.log for progress) ...")
+    print(f"dumping (see _generated/{shard_prefix}_*.log for progress) ...")
     rc = [p.wait() for (p, _) in procs]
     print("shard exit codes:", rc)
 
     shards = [out for (_, out) in procs]
-    # merge to _generated (the RAW dump); copy over superswim/tables/stick_angle_table.csv only after
-    # tests/test_stick_table_integrity.py passes on it (see knowledge/history for the swap procedure).
-    merged = os.path.join(GEN, "stick_angle_full.csv")
-    subprocess.run([sys.executable, DUMPER, "merge", f"out={merged}"]
+    # merge to _generated (RAW dump); copy into superswim/tables/ only after the integrity check passes.
+    merged = os.path.join(GEN, merged_name)
+    subprocess.run([sys.executable, dumper, "merge", f"out={merged}"]
                    + [f"shard{i}={s}" for i, s in enumerate(shards)])
     print("MERGED ->", merged)
 
