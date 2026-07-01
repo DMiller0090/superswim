@@ -43,8 +43,8 @@ FIXTURES = os.path.join(_rb, 'fixtures')  # code-referenced baseline seqs live h
 SLATE = os.environ.get('TWWGZ_SLATE',
                        os.path.join(FIXTURES, 'savestate', 'superswim_coldstart_slate.s10'))
 
-# (seqfile, label, xfail, note). xfail = currently-known-broken target, not a regression.
-# A bug-fixture xfail flips to PASS when its bug is fixed -- that IS the fix's gate.
+# (seqfile, label, xfail, note[, dtm_truth]). xfail flips to PASS when fixed = the gate. dtm_truth
+# (opt 5th elem): sim compared vs clean-DTM truth not advanceseq (run_dtm_truth); see open-questions#bug2.
 SUITE = [
     ("plan3k_exact_seq.txt",   "cold-start 3k", False, ""),
     ("pump_seq.txt",           "4-pump",        False, ""),
@@ -55,10 +55,11 @@ SUITE = [
     # setNormalSpeedF target-chase (~0.1). Diverges at f40 (v>0). Fix in step() state-55 gain.
     ("test_lowspeed_seq.txt",  "bug1 v>=0 tail", True,
      "v>=0 forward-swim gain (setNormalSpeedF chase)"),
-    # BUG #2: advanceseq gives a FALSE pass here (sim -65 matches the jittery pipe; clean DTM
-    # truth is v=-775). NOT fixed -- validate via run_dtm. See history/open-questions.md#bug2.
+    # BUG #2: advanceseq FALSE-passes (drops polls on the dense tail, matching the wrong sim); gated
+    # vs clean-DTM truth instead (dtm=1 re-confirms live). See history/open-questions.md#bug2.
     ("test_pumptrans_seq.txt", "bug2 neu-pump", True,
-     "FALSE advanceseq pass; clean DTM v=-775 vs sim -65 -- still broken, validate via run_dtm"),
+     "sim vs CLEAN-DTM truth v=-775.375 (run_dtm); still broken ~700 off -- do NOT trust advanceseq",
+     {"v": -775.375, "anim": 0.7674, "air": 475, "state": 55}),
     # BUG #3 (FIXED 2026-06-30): partial hold mid-charge; uniform swim-gain lag (sim.py step()).
     # Baseline guard now. See history/resolved-bugs.md#bug3.
     ("partial_hold77_seq.txt",  "bug3 partial hold", False,
@@ -67,6 +68,55 @@ SUITE = [
 
 # expand / acts_to_seq / animdiff now live in superswim.actions; wnamed in harness.live
 # (both imported above) so the ~30 scripts that reused them no longer depend on this harness.
+
+
+def run_dtm_truth(seqfile, dtm_truth, live_dtm):
+    """bug#2-style gate: compare the SIM against the CLEAN-DTM ground truth, NOT advanceseq.
+
+    The dense neu<->ess pump tail makes advanceseq drop polls (the bug#2 pipe artifact), so an
+    advanceseq compare gives a FALSE pass against the equally-wrong sim. Instead we seed the sim
+    from the DTM anchor's cold start (run_dtm reports the frame-0 controllable values) and compare
+    its end state to dtm_truth (v/anim/air/state recorded via movie playback). If live_dtm, we ALSO
+    re-run run_dtm live and assert the game still lands on dtm_truth (guards the recorded constant).
+    Returns the same result dict shape as run_one so main() can print/tally it uniformly."""
+    from harness.dtm.run_dtm import run_dtm, sticks_from_seq_file, DEFAULT_ANCHOR
+    path = seqfile if os.path.exists(seqfile) else os.path.join(FIXTURES, seqfile)
+    acts = expand(open(path).read())
+    sticks = sticks_from_seq_file(path)
+
+    truth = dict(dtm_truth)
+    if live_dtm:
+        end = run_dtm(sticks, expected=truth, anchor=DEFAULT_ANCHOR, read='step', verbose=True)
+        # Re-confirm the recorded constant against THIS live run so a drift can't hide.
+        c = end.get("compare", {})
+        if not c.get("ok", False):
+            print(f"      !! live run_dtm disagrees with recorded dtm_truth "
+                  f"(live v={end['potential_speed']:.3f} air={end['air']} st={end['link_state']})")
+        # Seed the sim from the ACTUAL anchor frame-0 values run_dtm reports.
+        s0 = end["start"]
+        sim = ColdStartSwimState(v=s0["potential_speed"], anim=s0["anim_frame"],
+                                 air=s0["air"]); sim.state = s0["link_state"]
+    else:
+        # Offline: canonical bit-exact cold seed (golden_harness COLD_ANIM/COLD_MRATE) so a future
+        # correct sim reaches v=-775 and flips to PASS offline; today it XFAILs by the ~700 gap.
+        sim = ColdStartSwimState(v=0.0, anim=0.06392288208007812, air=900,
+                                 mrate=0.5472222566604614); sim.state = 54
+    sim._entry_tax = False
+    for a in acts:
+        sim.step(a)
+
+    cyc = 26.0 if truth["state"] == 54 else 23.0
+    dv = truth["v"] - sim.v
+    dan = animdiff(truth["anim"], sim.anim, cyc)
+    air_ok = (truth["air"] == sim.air)
+    # NOTE: no tol slack -- this is deliberately reported against the TRUE endpoint, so while the
+    # sim over-bleeds the pump exits it XFAILs by ~700. A correct sim makes dv/dan -> 0 => PASS.
+    passed = abs(dv) <= 0.02 and dan <= 0.02 and truth["state"] == sim.state and air_ok
+    return {
+        "frames": len(acts), "passed": passed, "air_ok": air_ok, "dtm": True,
+        "vl": truth["v"], "vs": sim.v, "dv": dv, "anl": truth["anim"], "ans": sim.anim, "dan": dan,
+        "airl": truth["air"], "airs": sim.air, "stl": truth["state"], "sts": sim.state,
+    }
 
 
 def run_one(seqfile, slot, tol):
@@ -121,6 +171,8 @@ def main():
     tol = float(opts.get('tol', '0.02'))
     only = opts.get('only')
     quick = opts.get('quick') in ('1', 'true', 'yes')
+    live_dtm = opts.get('dtm') in ('1', 'true', 'yes')  # dtm=1: re-run run_dtm live for dtm_truth
+                                                        # entries (relaunches Dolphin); else offline
 
     suite = [t for t in SUITE if (only is None or t[0] == only)
              and not (quick and t[2])]
@@ -135,9 +187,14 @@ def main():
     src = f"slot {slot}" if slot is not None else os.path.basename(SLATE)
     print(f"SUPERSWIM RUNNER REGRESSION  ({src}, tol {tol})")
     n_pass = n_fail = n_xfail = 0
-    for seqfile, label, xfail, note in suite:
+    for entry in suite:
+        seqfile, label, xfail, note = entry[:4]
+        dtm_truth = entry[4] if len(entry) > 4 else None
         try:
-            r = run_one(seqfile, slot, tol)
+            if dtm_truth is not None:   # bug#2-style: compare sim vs CLEAN-DTM truth, not advanceseq
+                r = run_dtm_truth(seqfile, dtm_truth, live_dtm)
+            else:
+                r = run_one(seqfile, slot, tol)
         except Exception as e:
             print(f"ERROR {label:<14} {seqfile}: {e}"); n_fail += 1; continue
         f = r["frames"]
