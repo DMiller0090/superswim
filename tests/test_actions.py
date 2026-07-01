@@ -58,6 +58,25 @@ class TestActsToSeq:
         assert (out[0]["stickX"], out[0]["stickY"]) == A.CHG_UP
         assert (out[2]["stickX"], out[2]["stickY"]) == A.CHG_DN
 
+    def test_partial_ess_hold_stick(self):
+        # 'ess:<rawY>' = a partial on-axis hold: literal stick (128, rawY), no parity.
+        out = A.acts_to_seq(["ess:77", "ess:95"])
+        assert (out[0]["stickX"], out[0]["stickY"]) == (128, 77)
+        assert (out[1]["stickX"], out[1]["stickY"]) == (128, 95)
+
+    def test_partial_charge_mirrors_down_stroke_about_128(self):
+        # 'chg:<up>' alternates like 'chg' but the DOWN stroke mirrors (256-up), matching
+        # SwimState._chg_stick(up_raw). chg#1=UP=(128,up), chg#2=DN=(128,256-up).
+        out = A.acts_to_seq(["chg:200", "chg:200"])
+        assert (out[0]["stickX"], out[0]["stickY"]) == (128, 200)
+        assert (out[1]["stickX"], out[1]["stickY"]) == (128, 56)
+
+    def test_partial_charge_shares_parity_with_full_charge(self):
+        # a full 'chg' and a partial 'chg:<up>' both advance the same charge counter.
+        out = A.acts_to_seq(["chg", "chg:190"])
+        assert (out[0]["stickX"], out[0]["stickY"]) == A.CHG_UP          # chg#1 = UP
+        assert (out[1]["stickX"], out[1]["stickY"]) == (128, 256 - 190)  # chg#2 = DN mirror
+
     def test_unknown_action_raises(self):
         with pytest.raises(ValueError):
             A.acts_to_seq(["ess", "bad"])

@@ -70,6 +70,32 @@ def test_lowspeed_tail_decays_monotonically_toward_zero():
     assert vs[-1] < vs[0]             # and it has bled down
 
 
+def test_partial_hold_gain_lags_uniformly_onto_charge():
+    """Characterize the BUG #3 fix (uniform 1-frame swim-gain lag). In chg×4 + (128,77)×4 +
+    chg×4, the (128,77) holds each bleed +2.0 (md=(51-15)/54·3), and the LAST hold's gain
+    lands ONE frame later -- on the first charge AFTER the holds -- not the charge's own
+    ess_decay. Pre-fix that frame took +1/6 (the dropped-gain bug, dv error ~1.83)."""
+    rows = G.run_case("cruise_partial_hold", "cruise_hi",
+                      ("inline", "partial_hold_boundary"))
+    dv = lambda i: rows[i]["v"] - rows[i - 1]["v"]
+    # frames 6..8 (0-based 5..7) are holds 2..4: each applies a prior hold's +2.0 gain.
+    for i in (5, 6, 7):
+        assert dv(i) == pytest.approx(2.0, abs=1e-4)
+    # frame 9 (0-based 8) is the first charge after the holds: it carries the 4th hold's
+    # +2.0 (uniform lag), NOT the charge's +1/6 -- this is exactly what BUG #3 got wrong.
+    assert dv(8) == pytest.approx(2.0, abs=1e-4)
+    assert abs(dv(8) - 1.0 / 6.0) > 1.0        # decisively not the pre-fix dropped-gain value
+
+
+def test_cold_partial_hold77_matches_live():
+    """Hardware anchor: the cold-start partial-hold seq (run_tests `bug3 partial hold`)
+    ends at the LIVE-validated potential speed v=-92.0 (Dolphin DTM, 2026-06-30). Ties this
+    offline guard to real-game ground truth, not just sim self-consistency."""
+    rows = G.run_case("cold_partial_hold77", "cold", ("file", "partial_hold77_seq.txt"))
+    assert rows[-1]["v"] == pytest.approx(-92.0, abs=0.02)
+    assert rows[-1]["state"] == 55 and rows[-1]["air"] == 861
+
+
 def test_cold_entry_x598_scramble_visible():
     """The cold-start charge entry scrambles the ESS-start anim via the x598 multiply;
     pin that the first state-55 frame after entry carries a scrambled (non-small) anim."""

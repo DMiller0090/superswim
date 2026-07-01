@@ -96,6 +96,11 @@ INLINE_SEQS = {
     "ess_cruise": ["ess"] * 40,
     # ESS->neutral exit then sustained neutral (release_ess_speed + decay tail).
     "exit_then_dash": (["ess"] * 8 + ["neu"] * 20),
+    # PARTIAL on-axis hold block bracketed by charges (BUG #3 regime): the uniform 1-frame
+    # swim-gain lag carries the last (128,77) hold's gain onto the following charge frame.
+    "partial_hold_boundary": (["chg"] * 4 + ["ess:77"] * 4 + ["chg"] * 4),
+    # PARTIAL charge burst (chg:<rawY>): sub-full magnitude, still snaps/flips.
+    "partial_charge_burst": (["ess"] * 3 + ["chg:170"] * 4 + ["ess"] * 3),
 }
 
 CASES = [
@@ -113,6 +118,12 @@ CASES = [
     ("cruise_chg_even",   "cruise_hi",     ("inline", "charge_even")),
     ("cruise_chg_odd",    "cruise_hi",     ("inline", "charge_odd")),
     ("cruise_exit_dash",  "cruise_hi",     ("inline", "exit_then_dash")),
+
+    # --- partial deflection (BUG #3 fix: uniform swim-gain lag) ---
+    ("cruise_partial_hold",   "cruise_hi", ("inline", "partial_hold_boundary")),
+    ("cruise_partial_charge", "cruise_hi", ("inline", "partial_charge_burst")),
+    # cold-start partial-hold seq -- SIM output equals the LIVE-validated bug3 gate (v=-92.0).
+    ("cold_partial_hold77",   "cold",      ("file", "partial_hold77_seq.txt")),
 
     # low-air dip (air-drag regime) + low-speed decay tail
     ("lowair_dip2",       "cruise_lowair", ("inline", "neutral_dip_double")),
