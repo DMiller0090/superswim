@@ -14,12 +14,12 @@ Dense back-to-back pump plans reached only ~127k live vs the sim's ~300k. Root c
 net 300,816). A DTM *recorded* from the pipe inherits the jitter — only an independently authored DTM
 is unbiased. **Dense plans are valid.** → [reference/commands](../reference/commands.md#live-validation--dtm-the-faithful-delivery-path), [model/planner](../model/planner.md).
 
-> **Name clash — do not confuse with the OPEN sim bug.** This resolved bug#2 is the *pipe delivery
-> artifact* (a measurement issue, fixed by using DTM). It is DISTINCT from the still-open
-> `run_tests.py` **`bug2 neu-pump`** entry, which is a *sim physics* misprediction (the SWIMING anim
-> phase drifts through the ×598 pump scrambles, so pump exits land in the wrong |cos| band; live
-> v=−775 vs sim −65). That one is NOT fixed — see [open-questions#bug2](open-questions.md). The two
-> even interact: the pipe artifact is exactly why the sim bug's advanceseq gate false-passed.
+> The `run_tests.py` **pump-transition** DTM baseline (formerly labelled "bug2 neu-pump") is a
+> LOCKED clean-DTM sync, bit-exact. A one-session "sim over-bleeds pump exits" scare was a
+> **seed mismatch** (the sim seeded with the slot-10 slate's mRate 0.5472 while validated against
+> the anchor's cold start, real mRate 0.5); seeded correctly the sim is bit-exact. The mRate rule
+> and the [554 cold-start seeding](../model/sim.md#cold-start-seeding-the-mrate-rule) stand. Lesson
+> in [tests/dolphin/README](../../tests/dolphin/README.md#locked-tests-are-immutable-hard-rule).
 
 ## bug3 — partial-hold gain dropped at a hold→charge boundary
 

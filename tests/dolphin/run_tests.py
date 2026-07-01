@@ -43,8 +43,12 @@ FIXTURES = os.path.join(_rb, 'fixtures')  # code-referenced baseline seqs live h
 SLATE = os.environ.get('TWWGZ_SLATE',
                        os.path.join(FIXTURES, 'savestate', 'superswim_coldstart_slate.s10'))
 
+# Anchor cruise_cold@twwgz.sav's OWN logged move0_mrate (its cold start != the slate's 0.5472,
+# same display anim). Seed with THIS when validating vs the anchor's DTM truth. See README.md.
+ANCHOR_MRATE = 0.5
+
 # (seqfile, label, xfail, note[, dtm_truth]). xfail flips to PASS when fixed = the gate. dtm_truth
-# (opt 5th elem): sim compared vs clean-DTM truth not advanceseq (run_dtm_truth); see open-questions#bug2.
+# (opt 5th elem): sim compared vs clean-DTM truth not advanceseq (run_dtm_truth); see README.md.
 SUITE = [
     ("plan3k_exact_seq.txt",   "cold-start 3k", False, ""),
     ("pump_seq.txt",           "4-pump",        False, ""),
@@ -55,10 +59,10 @@ SUITE = [
     # setNormalSpeedF target-chase (~0.1). Diverges at f40 (v>0). Fix in step() state-55 gain.
     ("test_lowspeed_seq.txt",  "bug1 v>=0 tail", True,
      "v>=0 forward-swim gain (setNormalSpeedF chase)"),
-    # BUG #2: advanceseq FALSE-passes (drops polls on the dense tail, matching the wrong sim); gated
-    # vs clean-DTM truth instead (dtm=1 re-confirms live). See history/open-questions.md#bug2.
-    ("test_pumptrans_seq.txt", "bug2 neu-pump", True,
-     "sim vs CLEAN-DTM truth v=-775.375 (run_dtm); still broken ~700 off -- do NOT trust advanceseq",
+    # Pump-transition, gated vs the anchor's CLEAN-DTM truth (advanceseq unreliable on this dense
+    # tail). Sim bit-exact w/ anchor mrate. LOCKED synced baseline -- do not edit (see README.md).
+    ("test_pumptrans_seq.txt", "pump-transition", False,
+     "sim vs clean-DTM truth (anchor mrate 0.5), bit-exact",
      {"v": -775.375, "anim": 0.7674, "air": 475, "state": 55}),
     # BUG #3 (FIXED 2026-06-30): partial hold mid-charge; uniform swim-gain lag (sim.py step()).
     # Baseline guard now. See history/resolved-bugs.md#bug3.
@@ -71,14 +75,11 @@ SUITE = [
 
 
 def run_dtm_truth(seqfile, dtm_truth, live_dtm):
-    """bug#2-style gate: compare the SIM against the CLEAN-DTM ground truth, NOT advanceseq.
-
-    The dense neu<->ess pump tail makes advanceseq drop polls (the bug#2 pipe artifact), so an
-    advanceseq compare gives a FALSE pass against the equally-wrong sim. Instead we seed the sim
-    from the DTM anchor's cold start (run_dtm reports the frame-0 controllable values) and compare
-    its end state to dtm_truth (v/anim/air/state recorded via movie playback). If live_dtm, we ALSO
-    re-run run_dtm live and assert the game still lands on dtm_truth (guards the recorded constant).
-    Returns the same result dict shape as run_one so main() can print/tally it uniformly."""
+    """Gate the SIM against a CLEAN-DTM ground truth (movie playback), NOT advanceseq -- advanceseq
+    drops polls on dense neu<->ess tails so it is not trustworthy for pump seqs. The sim is seeded
+    at the anchor's cold start with the anchor's OWN mrate (ANCHOR_MRATE); it matches dtm_truth
+    bit-exact. If live_dtm, ALSO re-run run_dtm live to re-confirm the game still lands on dtm_truth
+    (guards the recorded constant). Same result-dict shape as run_one so main() prints it uniformly."""
     from harness.dtm.run_dtm import run_dtm, sticks_from_seq_file, DEFAULT_ANCHOR
     path = seqfile if os.path.exists(seqfile) else os.path.join(FIXTURES, seqfile)
     acts = expand(open(path).read())
@@ -87,20 +88,14 @@ def run_dtm_truth(seqfile, dtm_truth, live_dtm):
     truth = dict(dtm_truth)
     if live_dtm:
         end = run_dtm(sticks, expected=truth, anchor=DEFAULT_ANCHOR, read='step', verbose=True)
-        # Re-confirm the recorded constant against THIS live run so a drift can't hide.
         c = end.get("compare", {})
         if not c.get("ok", False):
             print(f"      !! live run_dtm disagrees with recorded dtm_truth "
                   f"(live v={end['potential_speed']:.3f} air={end['air']} st={end['link_state']})")
-        # Seed the sim from the ACTUAL anchor frame-0 values run_dtm reports.
-        s0 = end["start"]
-        sim = ColdStartSwimState(v=s0["potential_speed"], anim=s0["anim_frame"],
-                                 air=s0["air"]); sim.state = s0["link_state"]
-    else:
-        # Offline: canonical bit-exact cold seed (golden_harness COLD_ANIM/COLD_MRATE) so a future
-        # correct sim reaches v=-775 and flips to PASS offline; today it XFAILs by the ~700 gap.
-        sim = ColdStartSwimState(v=0.0, anim=0.06392288208007812, air=900,
-                                 mrate=0.5472222566604614); sim.state = 54
+    # Seed at the anchor cold start with the ANCHOR's mrate (not the slate's) -- the only correct
+    # seed for a comparison against the anchor's DTM truth.
+    sim = ColdStartSwimState(v=0.0, anim=0.06392288208007812, air=900, mrate=ANCHOR_MRATE)
+    sim.state = 54
     sim._entry_tax = False
     for a in acts:
         sim.step(a)
@@ -109,8 +104,6 @@ def run_dtm_truth(seqfile, dtm_truth, live_dtm):
     dv = truth["v"] - sim.v
     dan = animdiff(truth["anim"], sim.anim, cyc)
     air_ok = (truth["air"] == sim.air)
-    # NOTE: no tol slack -- this is deliberately reported against the TRUE endpoint, so while the
-    # sim over-bleeds the pump exits it XFAILs by ~700. A correct sim makes dv/dan -> 0 => PASS.
     passed = abs(dv) <= 0.02 and dan <= 0.02 and truth["state"] == sim.state and air_ok
     return {
         "frames": len(acts), "passed": passed, "air_ok": air_ok, "dtm": True,

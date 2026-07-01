@@ -4,6 +4,24 @@ These validate the sim against a running Dolphin instance, so they need an emula
 neither of which is shipped here. The pure-offline gate (`pytest` at the repo root) covers
 logic regressions without any of this.
 
+## Locked tests are immutable (HARD RULE)
+
+Once a test here is locked to a clean-DTM sync — its expected values confirmed against **movie
+playback** (`run_dtm.py`, the trustworthy path) — it is **frozen**. Do NOT edit the test, its
+input sequence, its expected values, or its golden to make a later run pass. A synced test is
+ground truth about the game; the sim is what's under test, not the other way around.
+
+If a locked test later shows the sim "wrong", the fault is, in order of likelihood:
+1. **Methodology** (almost always). The sim was seeded or compared incorrectly. The classic trap:
+   seeding the sim with a *different* cold start's controller mRate than the one the test's anchor
+   was captured on. Two cold starts can share a display anim yet differ in `move0_mrate` (this
+   anchor is **0.5**, the slot-10 slate is **0.5472**); the ×598 scramble amplifies that into a
+   ~700 `v` gap. Seed with the EXACT anchor's logged mRate and compare against the SAME savestate.
+2. **The playback/harness** (rare) — DTM authoring or the read.
+3. **The sim physics** — only after 1 and 2 are ruled out on the clean-DTM path.
+
+Never "fix" a synced test by regenerating its expected. That inverts the trust.
+
 ## Requirements
 
 - A running Dolphin (the TAS-edition fork used for development) with `twwgz.iso` (GZLJ01) booted.
