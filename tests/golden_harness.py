@@ -30,18 +30,16 @@ GOLDEN_DIR = os.path.join(HERE, "golden")
 
 # ---------------------------------------------------------------------------
 # SEEDS. Each seed is a documented physics regime. `kind` selects the state class:
-#   'cold'  -> ColdStartSwimState seeded at the real slot-10 cold start (state 54,
-#              entry_tax off, the LIVE-LOGGED controller mRate). This is the
-#              canonical cold-start seed validated bit-exact live (superswim-554-resolved):
-#              anim 0.06392288208007812, air 900, v 0, mrate 0.5472222566604614.
+#   'cold'  -> ColdStartSwimState at the DTM anchor cruise_cold@twwgz.sav (state 54, v0, air 900,
+#              its OWN mRate 0.5 -- NOT the slate's 0.5472). Mirrors the locked live DTM baselines; see README.
 #   'warm'  -> plain SwimState mid-swim (state 55), entry_tax off. Used for cruise /
 #              steady-state / neutral-dip / charge-burst characterization where we are
 #              already swimming and the cold-start scramble is not under test.
 # entry_tax mirrors the slate charge->hold artifact; left off for these characterization
 # seeds (run_trace's default True is exercised separately in the seq cases that need it).
 # ---------------------------------------------------------------------------
-COLD_ANIM = 0.06392288208007812      # true f32 fresh cold-start display anim (slot 10)
-COLD_MRATE = 0.5472222566604614      # live-logged MOVE0 controller rate at the seed
+COLD_ANIM = 0.06392288208007812      # true f32 fresh cold-start display anim (both cold starts)
+COLD_MRATE = 0.5                     # the DTM anchor's own logged MOVE0 rate (NOT the slate's 0.5472)
 
 SEEDS = {
     # canonical cold start (the run_tests / validate_coldstart seed)

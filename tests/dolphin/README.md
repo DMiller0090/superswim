@@ -39,9 +39,16 @@ Never "fix" a synced test by regenerating its expected. That inverts the trust.
 
 ```bash
 python tests/dolphin/run_tests.py            # full suite
+python tests/dolphin/run_tests.py dtm=1      # re-run the clean-DTM baselines LIVE (relaunches Dolphin)
 python tests/dolphin/run_tests.py quick=1    # skip the long 200k case
 python tests/dolphin/verify_state.py seq=... # per-frame divergence locator
 ```
+
+The PASS baselines (cold-start 3k, 4/8-pump, pump-transition, bug3 partial hold) are **clean-DTM
+syncs**: `run_tests.py` compares the sim to each recorded DTM truth offline (no emulator), seeded at
+the anchor `cruise_cold@twwgz.sav`'s cold start with its own mRate. `dtm=1` re-plays each movie live
+to re-confirm the truth still holds. These are LOCKED — see the immutability rule above. Only the
+two XFAILs (200k, bug1) still run over the advanceseq pipe from the slate.
 
 ## Which path: pipe vs clean DTM
 

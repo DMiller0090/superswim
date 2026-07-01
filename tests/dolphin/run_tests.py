@@ -49,25 +49,22 @@ ANCHOR_MRATE = 0.5
 
 # (seqfile, label, xfail, note[, dtm_truth]). xfail flips to PASS when fixed = the gate. dtm_truth
 # (opt 5th elem): sim compared vs clean-DTM truth not advanceseq (run_dtm_truth); see README.md.
+# PASS baselines are LOCKED clean-DTM syncs (sim vs recorded truth from cruise_cold@twwgz.sav via
+# movie playback, seeded ANCHOR_MRATE). IMMUTABLE -- do not edit values/seq/golden (see README.md).
 SUITE = [
-    ("plan3k_exact_seq.txt",   "cold-start 3k", False, ""),
-    ("pump_seq.txt",           "4-pump",        False, ""),
-    ("pump_seq8.txt",          "8-pump",        False, ""),
-    ("plan200k_seq.txt",       "200k target",   True,
-     "swim v/air/state bit-exact; residual = post-death anim tail"),
-    # BUG #1: v crosses 0 (forward swim) -> sim adds full ess_decay 0.1667, live runs
-    # setNormalSpeedF target-chase (~0.1). Diverges at f40 (v>0). Fix in step() state-55 gain.
-    ("test_lowspeed_seq.txt",  "bug1 v>=0 tail", True,
-     "v>=0 forward-swim gain (setNormalSpeedF chase)"),
-    # Pump-transition, gated vs the anchor's CLEAN-DTM truth (advanceseq unreliable on this dense
-    # tail). Sim bit-exact w/ anchor mrate. LOCKED synced baseline -- do not edit (see README.md).
-    ("test_pumptrans_seq.txt", "pump-transition", False,
-     "sim vs clean-DTM truth (anchor mrate 0.5), bit-exact",
+    ("plan3k_exact_seq.txt",   "cold-start 3k", False, "clean-DTM sync",
+     {"v": -80.6842, "anim": 3.4416, "air": 832, "state": 54}),
+    ("pump_seq.txt",           "4-pump",        False, "clean-DTM sync",
+     {"v": -102.3921, "anim": 20.6792, "air": 760, "state": 55}),
+    ("pump_seq8.txt",          "8-pump",        False, "clean-DTM sync",
+     {"v": -19.6456, "anim": 14.3366, "air": 688, "state": 55}),
+    ("test_pumptrans_seq.txt", "pump-transition", False, "clean-DTM sync (dense pump tail)",
      {"v": -775.375, "anim": 0.7674, "air": 475, "state": 55}),
-    # BUG #3 (FIXED 2026-06-30): partial hold mid-charge; uniform swim-gain lag (sim.py step()).
-    # Baseline guard now. See history/resolved-bugs.md#bug3.
-    ("partial_hold77_seq.txt",  "bug3 partial hold", False,
-     ""),
+    ("partial_hold77_seq.txt", "bug3 partial hold", False, "clean-DTM sync (uniform-lag fix)",
+     {"v": -92.0, "anim": 21.9570, "air": 861, "state": 55}),
+    # XFAIL, known-open, still on advanceseq/slate (no clean-DTM anchor yet). See open-questions.md.
+    ("plan200k_seq.txt",       "200k target",   True, "post-death anim tail (swim bit-exact)"),
+    ("test_lowspeed_seq.txt",  "bug1 v>=0 tail", True, "v>=0 forward-swim gain (setNormalSpeedF)"),
 ]
 
 # expand / acts_to_seq / animdiff now live in superswim.actions; wnamed in harness.live
