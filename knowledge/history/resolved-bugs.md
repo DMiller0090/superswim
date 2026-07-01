@@ -43,12 +43,36 @@ A phantom ~3-frame anim drift by f400 was a **truncated cold-start seed** (anim 
 sub-ULP error ~600×. With the full-precision seed the sim is bit-exact per-frame. Fix: never seed a
 truncated anim. → [model/sim](../model/sim.md#cold-start-seeding-the-mrate-rule).
 
-## Off-axis charge v residual — corrupt stick-angle table
+## Off-axis charge v residual — corrupt stick-angle table (input path)
 
 A 0.0105 too-high v on off-axis charge was traced (after a wrong "camera-field mismatch" hypothesis)
 to `stick_angle_table.csv` being dumped via the **calibrated `set_gc_buttons`** path while the
 game/tests/DTM use the **raw-byte `advancewith`** path — differing up to ±155 s16 on ~12k off-axis
-cells. Regenerating via `advancewith` → v bit-exact. → [model/predictors](../model/predictors.md#the-off-axis-charge-residual-resolved).
+cells. Regenerating via `advancewith` → v bit-exact. This fixed the x/y/`value` (magnitude) alignment;
+a separate **read-latency** corruption in the `angle` and `stick_dist` columns survived it and was
+found+fixed later (next entry). → [model/predictors](../model/predictors.md#stick-angle-table-corruption-resolved).
+
+## Stick-angle table — read-latency corruption in angle + stick_dist (gold re-dump)
+
+The `advancewith`-regenerated table still carried a 1-frame **read-latency** artifact: the set/read
+dump pipeline (`tww-python-scripts/stick_angle_grid_dump.py`) read `mMainStickAngle` / `mStickDistance`
+one frame before the game had updated them. ~2609 `angle` cells and the **entire** `stick_dist` column
+were lagged (`stick_dist` shifted ~2 rows), worst at exact-diagonal cells: (160,160) read 24260 vs the
+correct 24576, (160,112) 15162 vs 15771. The sim reads the `angle` column to drive facing, so this was
+a **real** sim-vs-live facing desync (3.35° at (160,112), confirmed via a clean-DTM negative-v true-
+superswim test; corrected cell → 0.00°). `test_complicated` missed it — its inputs (sx 98–157,
+sy∈{0,255}) never reach the sx≥160 / diagonal region.
+
+Fixed by a settle-and-verify gold re-dump (`superswim/harness/capture/stick_grid_redump.py` +
+`run_parallel_dump.py`): hold each stick through a multi-frame settle, verify stability across two
+consecutive settled frames (0 unstable / 65536), per-frame air/speed/pos re-lock. New table: `angle`
+bit-consistent with `atan2f(x,−y)` for all 65536 cells, exact-diagonals on the 45° grid, and
+`stick_dist == value == mMainStickValue == /54` (so `test_partial_magnitude.py` now LOCKS the grid ==
+closed-form magnitude, inverted from the old "is-not-the-gain"). Integrity locked offline by
+`tests/test_stick_table_integrity.py`. A pure decomp port (`mAngle = 10430.379·atan2f(x,−y)`,
+`mStickDistance = min(hypot/54,1)`) reproduces the angle at non-boundary cells but diverges from live
+Dolphin at 17.6 % of cells (deadzone-boundary/octagon byte-mapping), so the live capture — not a
+closed form — is authoritative. → [model/predictors](../model/predictors.md#stick-angle-table-corruption-resolved).
 
 ## Omega camera grid — input-path corruption + coarse subsample
 

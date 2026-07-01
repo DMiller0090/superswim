@@ -11,9 +11,12 @@ so the only thing that drives v is the magnitude model:
 Two facts are asserted, live-pinned:
   1. the closed-form magnitude min(hypot(_deadzone15)/54, 1) — what swim_arbitrary actually uses —
      reproduces the live v/anim BIT-EXACT (this is the regression lock);
-  2. the grid `stick_dist` column (deadzone ~13) does NOT — it predicts ~0.22 too short. This guards
-     the fixture's TEETH: if someone re-wires the grid magnitude in, (1) fails AND this check confirms
-     the case still discriminates, so the lock can't silently rot into a vacuous pass.
+  2. the grid `stick_dist` column now EQUALS that closed form, so driving the gain from the grid
+     column reproduces the live capture too. (Historically this column was CORRUPT — a ~2-row
+     latency shift from the old 1-frame-pipeline dump — and this test asserted it did NOT match, to
+     guard the fixture's teeth. The 2026-07 gold re-dump (harness/capture/stick_grid_redump.py,
+     settle+verify) fixed stick_dist == mMainStickValue == the closed form for all 65536 cells, so
+     the assertion is now inverted to LOCK that correctness. See knowledge/history.)
 
 Camera is frozen (csangle constant), so we drive ArbitrarySwimState directly with a fixed cam and
 do NOT go through swim_predict_complicated (whose omega camera table is a separate, coarse-grid gap).
@@ -70,10 +73,10 @@ def test_closed_form_magnitude_bit_exact():
         f"closed-form magnitude regressed: v_err={wv:g} (<= {TOL_V}) anim_err={wa:g} (<= {TOL_ANIM})")
 
 
-def test_grid_stick_dist_is_not_the_gain(monkeypatch):
-    """Sanity/teeth: the grid `stick_dist` column is NOT the gain magnitude — using it diverges
-    badly (~0.22). If this ever stops diverging the fixture has gone vacuous (e.g. a saturated
-    re-capture) and the bit-exact lock above no longer proves anything."""
+def test_grid_stick_dist_matches_closed_form(monkeypatch):
+    """Lock: the grid `stick_dist` column now EQUALS the closed-form /54 magnitude, so driving the
+    gain from the grid column reproduces the live capture within tolerance. Guards against the
+    column regressing to the old latency-corrupted values (which diverged ~0.22)."""
     # build the live stick_dist lookup straight from the shipped grid
     tbl = {}
     grid = os.path.join(HERE, "..", "superswim", "tables", "stick_angle_table.csv")
@@ -97,5 +100,6 @@ def test_grid_stick_dist_is_not_the_gain(monkeypatch):
 
     monkeypatch.setattr(ArbitrarySwimState, "_swim_facing", grid_mag)
     wv, _ = _run(_rows())
-    assert wv > 0.05, (
-        f"grid stick_dist no longer discriminates (v_err={wv:g}); fixture may be saturated/vacuous")
+    assert wv <= TOL_V, (
+        f"grid stick_dist regressed from the closed form (v_err={wv:g} > {TOL_V}); "
+        f"the stick_angle_table.csv stick_dist column may have reverted to latency-corrupted values")

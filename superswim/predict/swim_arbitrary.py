@@ -80,8 +80,8 @@ class ArbitrarySwimState(ColdStartSwimState):
             cap = S.deg_to_s16(S.ARROW_TURN_RATE)
             d_turn = max(-cap, min(cap, d))
         self._pending_facing = (self.facing + d_turn) & 0xFFFF
-        # gain magnitude = closed-form /54 (deadzone 15); LIVE bit-exact, NOT the grid stick_dist
-        # column (~0.22 short). See tests/test_partial_magnitude.py.
+        # gain magnitude = closed-form /54 (deadzone 15); LIVE bit-exact, == the table's
+        # stick_dist/value column too. See tests/test_partial_magnitude.py.
         mag = math.hypot(S._deadzone(rsx), S._deadzone(rsy))   # /54 gate (== ess_decay norm)
         md = min(mag / 54.0, 1.0)
         return S.f32(md * 3.0 * S.cM_scos_s16(d_turn))

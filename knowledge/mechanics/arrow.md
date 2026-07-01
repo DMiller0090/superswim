@@ -68,9 +68,9 @@ The tilt the game reads is **not** raw `atan2(ax, −ay)` — a **per-axis dead 
 constant as the [decay curve](../reference/constants.md#stick-geometry)) is removed first. That is
 what makes a partial-Y arrow stick read the correct tilt: `(0,96)` → α ≈ 8° (raw atan2 would give
 ~14°). For an on-axis stick the closed form is exact; off-axis, the exact `mMainStickAngle` is read
-from a live grid (`stick_angle_table.csv`) because the game applies a GC radial-gate normalization,
-not a clean per-axis dead zone. The **magnitude** columns of that table are **not** the swim gain
-magnitude (live-disproven); gain magnitude stays closed-form `/54`.
+from a live grid (`stick_angle_table.csv`) because Dolphin's byte→analog mapping diverges from the
+closed form at the deadzone boundary and octagon. That table's `stick_dist`/`value` magnitude columns
+**equal** the closed-form `/54` the gain already uses (see [model/predictors](../model/predictors.md#why-a-live-stick-angle-grid-not-a-closed-form)).
 
 ## 2-D geometry (the stepper)
 

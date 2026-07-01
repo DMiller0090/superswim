@@ -1,10 +1,12 @@
 """stick_angle.py - EXACT mMainStickAngle(sx,sy) (s16) for the superswim predictor.
 
-The game's main-stick -> angle is NOT a simple atan2 + per-axis dead-zone (that closed form,
-superswim_sim.stick_angle_deg, is only good to ~0.86deg / 156 s16 because the game applies the
-GC radial gate normalization). The exact angle is sampled live and cached in
-stick_angle_table.csv (see stick_angle_capture.py); the shipped INPUT_DUMP_MAIN.csv is a
-sparse cross-check (matches the live captures with 0 error).
+The game's main-stick -> angle is atan2f of the GC-clamped stick vector (JUTGamePad::CStick::update:
+mAngle = 10430.379f * atan2f(mPosX, -mPosY)), but the vector itself is Dolphin's byte->analog mapping
++ deadzone/octagon clamp, which diverges from both the naive atan2 (superswim_sim.stick_angle_deg,
+good only to ~0.86deg) AND the pure SDK PADClamp (a decomp port disagrees at ~17.6% of cells; that is
+Dolphin's input layer, not the game math). So the sim MUST match Dolphin, and the angle is captured
+live for all 65536 cells in stick_angle_table.csv (harness/capture/stick_grid_redump.py: settle+verify
+gold dump, 2026-07 — replaced a corrupt 1-frame-pipeline dump; see knowledge/history).
 
 angle_s16(sx,sy) returns the exact s16 angle from the cache, or None for a neutral stick.
 If a stick is NOT cached it raises KeyError -- run stick_angle_capture.py on the capture first
@@ -16,11 +18,11 @@ import os, csv
 from .. import sim as S
 
 _HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tables")
-# Complete live grid (all 65536 cells) of the game's MAIN_STICK_ANGLE (0x80398314), dumped via
-# tww-python-scripts/stick_angle_grid_dump.py — the authoritative mMainStickAngle for any (sx,sy).
+# Complete live grid (65536 cells) of MAIN_STICK_ANGLE (0x80398314), gold-dumped via
+# harness/capture/stick_grid_redump.py; integrity locked by tests/test_stick_table_integrity.py.
 _TABLE_PATH = os.path.join(_HERE, "stick_angle_table.csv")
-# Only the `angle` column is used here. The `stick_dist`/`value` magnitude columns are NOT the swim
-# gain magnitude (live-disproven, tests/test_partial_magnitude.py); gain mag stays closed-form /54.
+# Only the `angle` column is used here. The `stick_dist`/`value` magnitude columns both equal
+# mMainStickValue (== the closed-form /54 gain magnitude the sim uses); the sim reads neither column.
 
 _TABLE: dict[tuple[int, int], int] = {}
 if os.path.exists(_TABLE_PATH):
