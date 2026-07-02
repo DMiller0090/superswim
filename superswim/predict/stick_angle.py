@@ -33,8 +33,9 @@ _COMPLETE = len(_TABLE) >= 256 * 256
 
 
 def is_neutral(sx: int, sy: int) -> bool:
-    """A stick reads as neutral (no swim input) exactly when the closed-form dead-zone kills
-    both axes -- same gate the game uses to decide 'stick deflected'."""
+    """A stick reads as neutral (no swim input) exactly when mStickDistance <= 0.05 -- the
+    game's swim-input gate (see sim.stick_angle_deg; bit-identical to the gold table's
+    `value <= 0.05` on all 65536 cells)."""
     return S.stick_angle_deg(sx, sy) is None
 
 

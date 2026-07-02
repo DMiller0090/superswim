@@ -49,3 +49,13 @@ def test_matches_gold_fine_captures(full):
     fine = _load(FINE)
     bad = [(c, full.get(c), v) for c, v in fine.items() if full.get(c) != v]
     assert not bad, f"{len(bad)} cells disagree with gold omega_table.csv: {bad[:15]}"
+
+
+def test_camera_exact_omega_cmd_matches_grid(full):
+    """camera_exact.omega_cmd's hand-transcribed _OMEGA_POS/_OMEGA_NEG dicts + saturation must equal
+    the authoritative full grid on the pure-horizontal row (csy=128) for every csx. Locks against
+    silent drift — the dict was missing csx 109..112 (=-1), fixed 2026-07-01."""
+    from superswim.predict import camera_exact as CE
+    bad = [(csx, full[(csx, 128)], CE.omega_cmd(csx, 128))
+           for csx in range(256) if CE.omega_cmd(csx, 128) != full[(csx, 128)]]
+    assert not bad, f"{len(bad)} csx: omega_cmd != grid[csx,128]: {bad[:15]}"

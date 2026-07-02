@@ -21,7 +21,8 @@ EXACT PER-FRAME RECURRENCE (all s16, integer arithmetic; verified bit-exact incl
 
   * omega_cmd(csx) is an INTEGER (the per-frame target increment), measured live (tables below).
     It is the C-stick X -> camera-rate curve. Deadzone, steep S-curve, saturation:
-      - deadzone:    csx in 109..148  -> 0   (slightly asymmetric: +d<=20, -d<=19 give 0)
+      - deadzone:    csx in 113..148  -> 0   (asymmetric: +d<=20 i.e. csx<=148 give 0, but the
+                     low side's last zero is csx=112, so -d<=15; csx 109..112 already give -1)
       - saturation:  csx >= 175  -> +546 ;  csx <= 81  -> -547   (= +/-3.0 deg/frame, |d|>=47)
       - between:     the measured _OMEGA_POS / _OMEGA_NEG tables (NOT perfectly symmetric:
                      e.g. csx=160 (d=+32)->+18 but csx=96 (d=-32)->-19).
@@ -50,6 +51,7 @@ _OMEGA_POS = {
 }
 # Negative deflection (csx < 128):
 _OMEGA_NEG = {
+    112: -1, 111: -1, 110: -1, 109: -1,
     108: -1, 107: -2, 106: -3, 105: -3, 104: -4, 103: -5, 102: -6, 101: -8, 100: -10,
     99: -12, 98: -14, 97: -16, 96: -19, 95: -23, 94: -27, 93: -32, 92: -37, 91: -44,
     90: -52, 89: -61, 88: -73, 87: -87, 86: -106, 85: -131, 84: -165, 83: -219, 82: -326,

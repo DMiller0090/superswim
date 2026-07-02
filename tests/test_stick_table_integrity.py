@@ -16,6 +16,7 @@ import os, csv, math
 import pytest
 
 from superswim import sim as S
+from superswim.predict import stick_angle as SA
 
 TABLE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                      "superswim", "tables", "stick_angle_table.csv")
@@ -69,6 +70,21 @@ def test_magnitude_columns_consistent(rows):
             bad_sd += 1
     assert bad_v == 0, f"{bad_v} cells: value != hypot(x,y) capped"
     assert bad_sd == 0, f"{bad_sd} cells: stick_dist != value"
+
+
+def test_neutral_gate_matches_table_value(rows):
+    """The swim-input neutral gate (sim.stick_angle_deg / predict.is_neutral) must be
+    bit-identical to the game's mStickDistance > 0.05 gate, i.e. the table's `value <= 0.05`,
+    on every cell. Locks the radial-gate fix (was a square dz-15 test that over-applied a tiny
+    gain on the ~260-cell ring just outside the square; see _notes/handoff-neutral-gate)."""
+    bad = []
+    for r in rows:
+        sx, sy, val = int(r["sx"]), int(r["sy"]), float(r["value"])
+        table_neutral = val <= 0.05
+        sim_neutral = SA.is_neutral(sx, sy)
+        if sim_neutral != table_neutral:
+            bad.append((sx, sy, val, sim_neutral, table_neutral))
+    assert not bad, f"{len(bad)} cells: is_neutral != (value<=0.05): {bad[:15]}"
 
 
 def test_exact_diagonals_on_45deg_grid(rows):

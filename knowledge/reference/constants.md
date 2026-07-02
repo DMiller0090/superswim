@@ -25,6 +25,14 @@ is wrong.
 
 **Stick distance:** `mStickDistance = clamp((|raw − 128| − 15) / 54, 0, 1)` (cardinal).
 
+**Swim-input gate:** a frame counts as a swim input iff **`mStickDistance > 0.05`**
+(`d_a_player_main`), i.e. `hypot(dz_x, dz_y) > 2.7` after dead-zone removal — a *radial* test,
+not the dz-15 *square*. They differ only on a thin ring (~260 cells) just outside the square where
+one axis is 1–2 past the dead zone but the radial magnitude is still ≤ 0.05; the game blocks the
+tiny gain there. The sim uses this exact gate (`sim.stick_angle_deg` returns `None`), bit-identical
+to the gold stick table's `value ≤ 0.05` (locked by `tests/test_stick_table_integrity.py`). Real
+routes never hit the ring (they use full deflection, ess `(128,110)`, or true neutral).
+
 ## Speed deltas
 
 Per frame, to potential speed:

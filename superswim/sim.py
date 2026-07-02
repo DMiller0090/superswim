@@ -257,9 +257,16 @@ def _deadzone(c, dz=ARROW_STICK_DEADZONE):
 
 def stick_angle_deg(sx, sy):
     """Stick direction in the decomp convention (deg), or None for neutral.
-    0=down, 90=right, 180=up, 270=left. Per-axis dead-zoned. Slot-9 validated."""
+    0=down, 90=right, 180=up, 270=left. Per-axis dead-zoned. Slot-9 validated.
+
+    Neutral (no swim input) uses the game's actual gate: mStickDistance =
+    min(hypot(dz)/54, 1) <= 0.05  (d_a_player_main gates swim on mStickDistance > 0.05f).
+    This supersedes the old square-deadzone test (both dz axes 0); they agree everywhere
+    except a thin ring just outside the dz-15 square (0 < hypot <= 2.7), where the game
+    blocks a tiny gain the square test would let through. Bit-identical to the gold stick
+    table's `value <= 0.05` gate on all 65536 cells (verified), so no table dep needed."""
     ax, ay = _deadzone(sx), _deadzone(sy)
-    if ax == 0.0 and ay == 0.0:
+    if min(math.hypot(ax, ay) / 54.0, 1.0) <= 0.05:
         return None
     return math.degrees(math.atan2(ax, -ay)) % 360.0
 
