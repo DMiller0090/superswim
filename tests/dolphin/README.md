@@ -24,16 +24,20 @@ Never "fix" a synced test by regenerating its expected. That inverts the trust.
 
 ## Requirements
 
-- A running Dolphin (the TAS-edition fork used for development) with `twwgz.iso` (GZLJ01) booted.
-- `dolphin_mem` from the sibling `../tools/` workspace (these scripts reach it via a path bootstrap;
-  a standalone clone of this repo won't have it).
-- A **cold-start slate** to load. The slate is a dump of copyrighted game RAM, so it is **not**
-  distributed here — supply your own:
-  - `TWWGZ_SLATE=/path/to/your/slate.s10 python tests/dolphin/run_tests.py`, or
-  - `python tests/dolphin/run_tests.py slot=10` to load a Dolphin save slot instead.
-
-  A valid slate is an uncharged neutral float in open water (state 54). The suite seeds air/speed
-  and the cold-start animation from the live state, so any equivalent cold-start float works.
+- **No manual Dolphin setup.** `run_tests.py` warms up on its own (`harness/dolphin_env.py`): it
+  reuses a running instance, or launches the pipe-enabled **Release** build (with *Pause at end of
+  movie* enabled), boots `twwgz.iso`, and waits until the game is loadable before running. Pass
+  `warmup=0` to manage Dolphin yourself.
+- **Machine paths** (ISO directory, and optionally the Dolphin exe / slate) come from a **gitignored
+  `dolphin.local.json`** at the repo root — copy `dolphin.local.example.json` and edit. Env vars
+  (`TWW_ISOS_DIR`, `DOLPHIN_EXE`, `TWWGZ_SLATE`) override it. The ISO key `twwgz` resolves to
+  `<isos_dir>/twwgz.iso` (GZLJ01).
+- `dolphin_mem` from the sibling `../tools/` workspace (reached via a path bootstrap; a standalone
+  clone won't have it).
+- A **cold-start slate** to load (a dump of copyrighted game RAM, **not** distributed here): defaults
+  to `fixtures/savestate/superswim_coldstart_slate.s10`; override via `TWWGZ_SLATE` / `dolphin.local.json`,
+  or pass `slot=<n>` to load a Dolphin save slot. A valid slate is an uncharged neutral float in open
+  water (state 54); the suite seeds air/speed/anim from the live state, so any equivalent works.
 
 ## Running
 
@@ -69,6 +73,12 @@ Authors a clean DTM → stops any running Dolphin and relaunches it (the game li
 the movie → compares v/anim/air/state/**facing**. Position (x/z) is wave-affected and never
 asserted. The iso is read from the anchor name, so no `game=` needed. `seq=NAME` resolves `NAME`
 under `fixtures/`; pass a path for files elsewhere, or raw sticks with `sticks=<csv>`.
+
+Playback defaults to the fast **`exhaust`** read: the movie free-runs and the end state is read once
+playback stops. This is exact only because the emulator **pauses at the last movie frame** — the
+relaunch enables *Pause at end of movie* (`dolphin_env.ensure_pause_at_end`) so this always holds.
+`read=step` (advance one frame at a time over the pipe) is exact without that setting but ~100× slower
+(ControlPipe waits per frame-step) — keep it only for debugging.
 
 ## Anchors
 

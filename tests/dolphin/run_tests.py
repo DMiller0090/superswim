@@ -36,12 +36,12 @@ from superswim import sim as S
 from superswim.coldstart import ColdStartSwimState
 from superswim.actions import expand, acts_to_seq, animdiff
 from harness.live import wnamed
+from harness import dolphin_env as ENV
 
 FIXTURES = os.path.join(_rb, 'fixtures')  # code-referenced baseline seqs live here
 # Cold-start slate, loaded BY PATH via `loadfile`. It dumps copyrighted game RAM so is NOT shipped:
-# set TWWGZ_SLATE to your own slate file, or pass slot=<n>. See tests/dolphin/README.
-SLATE = os.environ.get('TWWGZ_SLATE',
-                       os.path.join(FIXTURES, 'savestate', 'superswim_coldstart_slate.s10'))
+# set TWWGZ_SLATE / dolphin.local.json, or pass slot=<n>. See tests/dolphin/README + dolphin_env.
+SLATE = ENV.slate()
 
 # Anchor cruise_cold@twwgz.sav's OWN logged move0_mrate (its cold start != the slate's 0.5472,
 # same display anim). Seed with THIS when validating vs the anchor's DTM truth. See README.md.
@@ -168,6 +168,15 @@ def main():
              and not (quick and t[2])]
     if not suite:
         print(f"no matching tests (only={only!r})"); sys.exit(2)
+
+    # Warm up Dolphin so this runs from cold in one command (dolphin_env.ensure_running); warmup=0
+    # to manage it yourself. Skipped when every selected test is offline (dtm_truth needs no Dolphin).
+    needs_dolphin = any(len(t) <= 4 for t in suite) or live_dtm  # run_one/advanceseq or dtm=1
+    if opts.get('warmup') not in ('0', 'false', 'no') and needs_dolphin:
+        # ready_slate: on a cold boot, wait until this slate actually loads before running
+        # advanceseq (else a loadstate at the boot logo screen reads a null player pointer).
+        ENV.ensure_running(ready_slate=SLATE if slot is None else None)
+
     if slot is None and not os.path.exists(SLATE):
         print(f"slate not found: {SLATE}\n"
               "The cold-start slate is not shipped (it dumps copyrighted game RAM). Set TWWGZ_SLATE "

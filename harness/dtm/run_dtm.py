@@ -40,19 +40,16 @@ import dolphin_mem as D
 from superswim import actions as A
 from superswim import sim as S
 import dtm_make as DM
+from harness import dolphin_env as ENV
 
-# --- environment defaults (override via kwargs / env) --------------------------------
-EXE = os.environ.get("DOLPHIN_EXE", os.path.join(
-    os.path.dirname(_rb), "Dolphin-Zelda-TAS-Edition", "Binary", "x64", "Release", "Dolphin.exe"))
-ISOS_DIR = os.environ.get("TWW_ISOS_DIR", r"C:\Users\pinhi\Documents\ISOs")
-# Test-owned anchors (not save slots): "<test>@<isokey>.sav"; isokey -> <ISOS_DIR>/<key>.iso so
+# --- environment (machine paths come from harness.dolphin_env: env -> dolphin.local.json) ------
+# Test-owned anchors (not save slots): "<test>@<isokey>.sav"; isokey -> <isos_dir>/<key>.iso so
 # the runner pulls the right image automatically. See tests/dolphin/anchors/README.md.
 ANCHOR_DIR = os.path.join(_rb, "tests", "dolphin", "anchors")
 _GEN = os.path.join(_rb, "_generated")
 DEFAULT_TEMPLATE = os.path.join(_GEN, "cruise_pump300k_rec.dtm")  # iso-agnostic header clone
 DEFAULT_ANCHOR = os.path.join(ANCHOR_DIR, "cruise_cold@twwgz.sav")  # cold start v0/state54
 X0, Z0 = 42222.0, -158781.0          # slate origin (net is a sanity scalar only)
-STEP_AUTO_CAP = 3000                 # <= this many frames -> step read; else exhaust
 FACING_TOL_DEG = 2.0                 # default facing compare tolerance (game u16 -> deg)
 
 
@@ -65,7 +62,7 @@ def resolve_anchor(anchor):
 
 
 def iso_for_anchor(anchor):
-    """Parse the '@<isokey>.sav' suffix and resolve <ISOS_DIR>/<isokey>.iso.
+    """Parse the '@<isokey>.sav' suffix and resolve <isos_dir>/<isokey>.iso via dolphin_env.
 
     The iso the anchor was captured on is baked into its filename, so the runner never has
     to be told which image to boot. Raises if the name lacks a key or the iso isn't found.
@@ -78,14 +75,7 @@ def iso_for_anchor(anchor):
     if '@' not in base:
         raise SystemExit(f"anchor '{base}' has no '@<isokey>' iso tag; "
                          f"name it e.g. mytest@twwgz.sav")
-    key = base.rsplit('@', 1)[1]
-    exact = os.path.join(ISOS_DIR, key + '.iso')
-    if os.path.exists(exact):
-        return exact.replace('\\', '/')
-    hits = glob.glob(os.path.join(ISOS_DIR, key + '*.iso'))
-    if not hits:
-        raise SystemExit(f"no iso for key '{key}' in {ISOS_DIR}")
-    return hits[0].replace('\\', '/')
+    return ENV.iso_path(base.rsplit('@', 1)[1])
 
 
 # --- input adapters -------------------------------------------------------------------
@@ -107,9 +97,11 @@ def _status():
 
 
 def relaunch(verbose=True):
+    exe = ENV.dolphin_exe()
     subprocess.run(["taskkill", "/F", "/IM", "Dolphin.exe"], capture_output=True)
     time.sleep(1.5)
-    subprocess.Popen([EXE], cwd=os.path.dirname(EXE))
+    ENV.ensure_pause_at_end(exe, verbose=verbose)   # exhaust reads require pausing at movie end
+    subprocess.Popen([exe], cwd=os.path.dirname(exe))
     for _ in range(40):
         if _status().get("ok"):
             if verbose: print("Dolphin relaunched (stopped game list)")
@@ -161,9 +153,13 @@ def run_dtm(sticks, expected=None, *, game=None, anchor=DEFAULT_ANCHOR,
     expected : optional dict, any of {v, anim, air, state, facing} (facing in DEGREES);
                v/anim/state/air compared within tol, facing cyclically within facing_tol.
     game     : iso path; if None, derived from the anchor's '@<isokey>' tag.
-    read     : 'step' (deterministic advance to movie exhaustion; drift-free, short movies),
-               'exhaust' (resume + free-run until playing flips false; for huge movies),
-               'auto'   (step if <= STEP_AUTO_CAP frames, else exhaust).
+    read     : 'exhaust' (resume + free-run until the movie exhausts; the emulator PAUSES at the
+                          last movie frame -- guaranteed by dolphin_env.ensure_pause_at_end -- so
+                          the read is exact and there is no per-frame pipe overhead: FAST default),
+               'step'    (advance one input frame at a time via the pipe; exact WITHOUT relying on
+                          PauseMovie, but ControlPipe's per-frame DoFrameStep wait makes it ~100x
+                          slower -- keep only for debugging / a machine that can't set PauseMovie),
+               'auto'    (== 'exhaust').
     """
     anchor = resolve_anchor(anchor)
     game = (game or iso_for_anchor(anchor)).replace('\\', '/')
@@ -177,7 +173,7 @@ def run_dtm(sticks, expected=None, *, game=None, anchor=DEFAULT_ANCHOR,
         print(f"authored {os.path.basename(out)}: {info['frames']} fr, "
               f"{info['rows']} rows; anchor={os.path.basename(anchor)}")
 
-    mode = read if read != 'auto' else ('step' if nframes <= STEP_AUTO_CAP else 'exhaust')
+    mode = 'exhaust' if read == 'auto' else read
 
     if relaunch_dolphin:
         relaunch(verbose)
